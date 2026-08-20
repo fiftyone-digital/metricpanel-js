@@ -1,0 +1,186 @@
+# @metricpanel/sdk
+
+Official TypeScript/JavaScript SDK for MetricPanel Analytics.
+
+## Features
+
+- TypeScript support
+- Lightweight browser bundle
+- Privacy controls for Do Not Track, cookieless mode, and consent gating
+- Browser support for React, Vue, Svelte, vanilla JS, and modern bundlers
+- React Native/native JavaScript entrypoint without DOM globals
+- Pageviews, screen views, events, revenue, and goals
+- Session-scoped last-touch campaign attribution across internal navigation
+- Hostname and query capture plus first-external-referrer persistence for acquisition reports
+- Stripe metadata helpers for revenue attribution
+
+## Installation
+
+```bash
+npm add @metricpanel/sdk
+```
+
+Other supported package managers:
+
+```bash
+bun add @metricpanel/sdk
+npm install @metricpanel/sdk
+pnpm add @metricpanel/sdk
+yarn add @metricpanel/sdk
+```
+
+## Quick Start
+
+```typescript
+import { createMetricPanel } from '@metricpanel/sdk'
+
+const metricpanel = createMetricPanel({
+  websiteId: 'your-website-id',
+  apiUrl: 'https://api.metricpanel.io/api',
+})
+
+// Track pageview
+await metricpanel.pageview()
+
+// Track custom event
+await metricpanel.event('button_click', { button: 'cta' })
+
+// Track revenue
+await metricpanel.revenue({ amount: 2999 })
+
+// Track goal
+await metricpanel.goal({ name: 'signup' })
+```
+
+The browser SDK defaults to `https://api.metricpanel.io/api` and sends events to
+`https://api.metricpanel.io/api/events`. The explicit value above makes the hosted destination
+obvious in copied configuration. To use a first-party proxy or a self-hosted MetricPanel API,
+override `apiUrl` with the base path that owns the `/events` route:
+
+```typescript
+const metricpanel = createMetricPanel({
+  websiteId: 'your-website-id',
+  apiUrl: '/analytics/api',
+})
+```
+
+Trailing slashes are normalized. An empty `apiUrl` is rejected instead of falling back silently.
+Revenue amounts must be positive integers in the smallest currency unit, and currency values use
+three-letter ISO codes. For USD, `2999` means `$29.99`.
+
+## React Native
+
+Use the separate native entrypoint so React Native apps do not load browser-only code:
+
+```typescript
+import { createMetricPanelNative } from '@metricpanel/sdk/react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
+const metricpanel = createMetricPanelNative({
+  websiteId: 'your-website-id',
+  apiUrl: 'https://api.metricpanel.io/api',
+  storage: AsyncStorage,
+  platform: 'ios',
+  os: 'iOS',
+})
+
+await metricpanel.screen('Home')
+await metricpanel.event('signup_tapped', { placement: 'hero' })
+await metricpanel.revenue({ amount: 2999, currency: 'usd' })
+```
+
+The native entrypoint sends events to `POST /api/events` with the same website ID,
+visitor ID, session ID, event, goal, and revenue fields used by the browser SDK.
+It does not include automatic navigation instrumentation, native device plugins, push
+campaign attribution, or an iOS/Android platform package.
+
+## Pageview strategy
+
+Choose one pageview strategy per page:
+
+- Use the hosted tracking script if you want automatic initial-load and SPA navigation pageviews.
+- Use the SDK if you want to trigger pageviews manually with `metricpanel.pageview()`.
+
+Do not load the hosted script and also call SDK pageviews for the same page lifecycle unless you intentionally want both events.
+
+For a client-side router, keep one SDK instance and call `pageview()` after each completed route
+change. Set `trackHashRoutes: true` only for routers whose route state lives in the URL hash.
+
+## Browser and Next.js lifecycle
+
+Importing the package is safe in Node and during Next.js server rendering, but browser tracking must
+be initialized in client-side code because it reads `window`, `document`, cookies, and browser
+storage.
+
+```tsx
+'use client'
+
+import { useEffect } from 'react'
+import { createMetricPanel } from '@metricpanel/sdk'
+
+export function Analytics() {
+  useEffect(() => {
+    const metricpanel = createMetricPanel({
+      websiteId: 'your-website-id',
+      apiUrl: 'https://api.metricpanel.io/api',
+    })
+
+    void metricpanel.pageview()
+    return () => metricpanel.destroy()
+  }, [])
+
+  return null
+}
+```
+
+Localhost and loopback traffic is ignored by default. Set `allowLocalhost: true` while deliberately
+testing a local application. `destroy()` releases an instance without removing persisted identity;
+`revokeConsent()` stops tracking and removes the website-scoped consent, attribution, and cookie
+identity state.
+
+Network failures never break the host application. Provide `onError` if the application needs
+diagnostic visibility:
+
+```typescript
+const metricpanel = createMetricPanel({
+  websiteId: 'your-website-id',
+  onError: (error) => reportAnalyticsDiagnostic(error),
+})
+```
+
+## Documentation
+
+See the [MetricPanel SDK guide](https://metricpanel.io/docs/sdk) for complete documentation
+including:
+
+- Installation methods
+- API reference
+- Framework examples (React, Vue, Svelte, Next.js)
+- Stripe integration
+- Best practices
+- Troubleshooting
+
+## Building
+
+```bash
+bun install
+bun run build
+```
+
+Output:
+
+- `dist/index.cjs` / `dist/index.mjs` - Browser SDK
+- `dist/react-native.cjs` / `dist/react-native.mjs` - React Native/native SDK entrypoint
+- `dist/*.d.ts` - TypeScript definitions and declaration maps
+- `dist/*.map` - JavaScript source maps
+
+## Release integrity
+
+Releases are built from this public repository and published through npm Trusted Publishing with
+short-lived GitHub Actions OIDC credentials. The release workflow runs the checks, inspects the
+packed tarball, publishes it with provenance, and verifies clean Bun and Node consumption from the
+public registry.
+
+## License
+
+MIT

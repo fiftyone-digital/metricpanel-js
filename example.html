@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MetricPanel SDK Example</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #333;
+      }
+      button {
+        background: #0070f3;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 8px;
+      }
+      button:hover {
+        background: #0051cc;
+      }
+      .section {
+        margin: 40px 0;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+      }
+      .code {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 16px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+      }
+      .status {
+        padding: 12px;
+        margin: 16px 0;
+        border-radius: 6px;
+        background: #e0f2fe;
+        border-left: 4px solid #0284c7;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 MetricPanel SDK Example</h1>
+    <p>This page demonstrates how to use the MetricPanel SDK for tracking analytics events.</p>
+
+    <div class="status">
+      <strong>Status:</strong> <span id="status">Initializing...</span><br />
+      <strong>Visitor ID:</strong> <span id="visitor-id">-</span><br />
+      <strong>Session ID:</strong> <span id="session-id">-</span>
+    </div>
+
+    <div class="section">
+      <h2>1. Track Pageview</h2>
+      <p>Track a pageview event manually:</p>
+      <button onclick="trackPageview()">Track Pageview</button>
+      <div class="code">await metricpanel.pageview()</div>
+    </div>
+
+    <div class="section">
+      <h2>2. Track Custom Events</h2>
+      <p>Track user interactions and custom events:</p>
+      <button onclick="trackButtonClick()">Track Button Click</button>
+      <button onclick="trackSearch()">Track Search</button>
+      <button onclick="trackFormSubmit()">Track Form Submit</button>
+      <div class="code">
+        await metricpanel.event('button_click', { button: 'example' }) await
+        metricpanel.event('search', { query: 'analytics', results: 42 }) await
+        metricpanel.event('form_submit', { form_id: 'contact' })
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>3. Track Revenue</h2>
+      <p>Track purchases and revenue:</p>
+      <button onclick="trackRevenue()">Track $29.99 Sale</button>
+      <button onclick="trackRevenueDetailed()">Track $49.99 Sale (Detailed)</button>
+      <div class="code">
+        await metricpanel.revenue({ amount: 2999 }) await metricpanel.revenue({ amount: 4999,
+        currency: 'usd', productId: 'prod_123', productName: 'Premium Plan' })
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>4. Track Goals</h2>
+      <p>Track goal conversions:</p>
+      <button onclick="trackGoal()">Track Signup Goal</button>
+      <button onclick="trackGoalWithValue()">Track Purchase Goal</button>
+      <div class="code">
+        await metricpanel.goal({ name: 'signup' }) await metricpanel.goal({ name: 'purchase', value:
+        4999 })
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>5. Stripe Integration</h2>
+      <p>Get metadata for Stripe checkout:</p>
+      <button onclick="showStripeMetadata()">Get Stripe Metadata</button>
+      <pre id="stripe-metadata" class="code" style="display: none"></pre>
+      <div class="code">
+        const metadata = metricpanel.getStripeMetadata() // Include in Stripe checkout session
+        metadata: metadata
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>6. Privacy & Consent Management</h2>
+      <p>Demonstrate consent management, cookieless mode, and IP anonymization:</p>
+
+      <div style="background: #fff; padding: 16px; border-radius: 6px; margin: 16px 0">
+        <h3>Consent Mode Demo</h3>
+        <p><strong>Status:</strong> <span id="consent-status">Loading...</span></p>
+        <button onclick="grantConsentDemo()">Grant Consent</button>
+        <button onclick="revokeConsentDemo()">Revoke Consent</button>
+        <button onclick="checkConsentDemo()">Check Consent</button>
+        <div class="code" style="margin-top: 12px">
+          // Initialize with consent mode const metricpanel = new MetricPanelSDK({ websiteId:
+          'your-id', waitForConsent: true }) // Grant consent await metricpanel.grantConsent() //
+          Revoke consent metricpanel.revokeConsent() // Check status metricpanel.hasConsent() //
+          true/false
+        </div>
+      </div>
+
+      <div style="background: #fff; padding: 16px; border-radius: 6px; margin: 16px 0">
+        <h3>Privacy Modes</h3>
+        <div class="code">
+          // Cookieless mode (no persistent cookies) const metricpanel = new MetricPanelSDK({
+          websiteId: 'your-id', cookieless: true }) // IP anonymization (no IP/geo data) const
+          metricpanel = new MetricPanelSDK({ websiteId: 'your-id', anonymizeIP: true }) // Maximum
+          privacy (GDPR compliant) const metricpanel = new MetricPanelSDK({ websiteId: 'your-id',
+          waitForConsent: true, cookieless: true, anonymizeIP: true, respectDoNotTrack: true })
+        </div>
+      </div>
+
+      <div style="background: #fff; padding: 16px; border-radius: 6px; margin: 16px 0">
+        <h3>Cookie Banner Example</h3>
+        <button onclick="showCookieBanner()">Show Cookie Banner</button>
+        <div
+          id="cookie-banner"
+          style="
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1e1e1e;
+            color: white;
+            padding: 24px;
+            text-align: center;
+            z-index: 1000;
+          "
+        >
+          <p style="margin: 0 0 16px 0">🍪 We use analytics to improve your experience.</p>
+          <button onclick="acceptCookies()" style="background: #10b981; margin-right: 8px">
+            Accept
+          </button>
+          <button onclick="rejectCookies()" style="background: #6b7280">Decline</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Include the SDK -->
+    <script type="module">
+      // Import the SDK (in production, use CDN or npm package)
+      import MetricPanelSDK from './dist/index.mjs'
+
+      // Initialize MetricPanel
+      const metricpanel = new MetricPanelSDK({
+        websiteId: 'demo-website-id',
+        // This self-hosted example intentionally uses a same-origin /api/events proxy.
+        // Omit apiUrl in a hosted integration to use https://api.metricpanel.io/api.
+        apiUrl: window.location.origin + '/api',
+        allowLocalhost: true,
+        debug: true, // Enable console logging
+      })
+
+      // Update status
+      setTimeout(() => {
+        document.getElementById('status').textContent = 'Ready ✅'
+        document.getElementById('visitor-id').textContent = metricpanel.getVisitorId() || 'N/A'
+        document.getElementById('session-id').textContent = metricpanel.getSessionId() || 'N/A'
+      }, 500)
+
+      // Track pageview on load
+      metricpanel.pageview()
+
+      // Make metricpanel available globally for button clicks
+      window.metricpanel = metricpanel
+    </script>
+
+    <!-- Event handlers -->
+    <script>
+      async function trackPageview() {
+        await window.metricpanel.pageview()
+        alert('✅ Pageview tracked! Check browser console.')
+      }
+
+      async function trackButtonClick() {
+        await window.metricpanel.event('button_click', {
+          button: 'example',
+          page: window.location.pathname,
+        })
+        alert('✅ Button click tracked!')
+      }
+
+      async function trackSearch() {
+        await window.metricpanel.event('search', {
+          query: 'analytics',
+          results: 42,
+          category: 'tools',
+        })
+        alert('✅ Search event tracked!')
+      }
+
+      async function trackFormSubmit() {
+        await window.metricpanel.event('form_submit', {
+          form_id: 'contact',
+          success: true,
+        })
+        alert('✅ Form submit tracked!')
+      }
+
+      async function trackRevenue() {
+        await window.metricpanel.revenue({
+          amount: 2999, // $29.99
+        })
+        alert('✅ Revenue tracked: $29.99')
+      }
+
+      async function trackRevenueDetailed() {
+        await window.metricpanel.revenue({
+          amount: 4999,
+          currency: 'usd',
+          productId: 'prod_123',
+          productName: 'Premium Plan',
+          metadata: {
+            plan_type: 'annual',
+            discount: 'SAVE20',
+          },
+        })
+        alert('✅ Revenue tracked: $49.99 (with details)')
+      }
+
+      async function trackGoal() {
+        await window.metricpanel.goal({
+          name: 'signup',
+        })
+        alert('✅ Signup goal tracked!')
+      }
+
+      async function trackGoalWithValue() {
+        await window.metricpanel.goal({
+          name: 'purchase',
+          value: 4999,
+        })
+        alert('✅ Purchase goal tracked with value!')
+      }
+
+      function showStripeMetadata() {
+        const metadata = window.metricpanel.getStripeMetadata()
+        const el = document.getElementById('stripe-metadata')
+        el.textContent = JSON.stringify(metadata, null, 2)
+        el.style.display = 'block'
+      }
+
+      // Privacy & Consent Management demos
+      async function grantConsentDemo() {
+        try {
+          await window.metricpanel.grantConsent()
+          updateConsentStatus()
+          alert('✅ Consent granted! Tracking enabled.')
+        } catch (error) {
+          alert(
+            '⚠️ Error: ' +
+              error.message +
+              '\nNote: This demo SDK is not in consent mode. The grantConsent() method only works when waitForConsent: true.'
+          )
+        }
+      }
+
+      function revokeConsentDemo() {
+        try {
+          window.metricpanel.revokeConsent()
+          updateConsentStatus()
+          alert('✅ Consent revoked! Tracking stopped.')
+        } catch (error) {
+          alert('⚠️ Error: ' + error.message + '\nNote: This demo SDK is not in consent mode.')
+        }
+      }
+
+      function checkConsentDemo() {
+        const hasConsent = window.metricpanel.hasConsent()
+        alert(`Consent status: ${hasConsent ? '✅ Granted' : '❌ Not granted'}`)
+      }
+
+      function updateConsentStatus() {
+        const hasConsent = window.metricpanel.hasConsent()
+        const statusEl = document.getElementById('consent-status')
+        statusEl.textContent = hasConsent ? '✅ Consent granted' : '❌ Waiting for consent'
+        statusEl.style.color = hasConsent ? '#10b981' : '#ef4444'
+      }
+
+      function showCookieBanner() {
+        document.getElementById('cookie-banner').style.display = 'block'
+      }
+
+      async function acceptCookies() {
+        await window.metricpanel.grantConsent()
+        document.getElementById('cookie-banner').style.display = 'none'
+        updateConsentStatus()
+        alert('✅ Cookies accepted! Analytics enabled.')
+      }
+
+      function rejectCookies() {
+        window.metricpanel.revokeConsent()
+        document.getElementById('cookie-banner').style.display = 'none'
+        updateConsentStatus()
+        alert('❌ Cookies declined. No tracking will occur.')
+      }
+
+      // Initialize consent status on load
+      setTimeout(updateConsentStatus, 600)
+    </script>
+  </body>
+</html>
