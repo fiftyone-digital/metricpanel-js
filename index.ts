@@ -1,7 +1,7 @@
 /**
  * MetricPanel Analytics SDK
  * A TypeScript SDK for tracking events, goals, and revenue
- * @version 1.1.0
+ * @version 1.1.1
  */
 
 export interface MetricPanelConfig {
