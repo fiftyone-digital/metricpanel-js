@@ -159,6 +159,8 @@ describe('MetricPanel browser SDK', () => {
 
     await cookieless.event('privacy_enabled')
 
+    expect(document.cookie).not.toMatch(/metricpanel_visitor=[^;]/)
+    expect(document.cookie).not.toMatch(/metricpanel_session=[^;]/)
     expect(document.cookie).not.toMatch(/mtrk_vid=[^;]/)
     expect(document.cookie).not.toMatch(/mtrk_sid=[^;]/)
     expect(requestBody(fetchMock)._privacyMode).toEqual({
@@ -184,20 +186,66 @@ describe('MetricPanel browser SDK', () => {
 
     await metricpanel.grantConsent()
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(localStorage.getItem('mtrk_consent:site_consent')).toBe('granted')
+    expect(localStorage.getItem('metricpanel_consent:site_consent')).toBe('granted')
 
-    sessionStorage.setItem('mtrk_attr:site_consent', '{"source":"test"}')
-    sessionStorage.setItem('mtrk_ref:site_consent', '{"referrer":"https://google.com"}')
+    sessionStorage.setItem('metricpanel_attribution:site_consent', '{"source":"test"}')
+    sessionStorage.setItem('metricpanel_referrer:site_consent', '{"referrer":"https://google.com"}')
     metricpanel.revokeConsent()
 
     expect(metricpanel.hasConsent()).toBe(false)
     expect(metricpanel.getVisitorId()).toBeNull()
     expect(metricpanel.getSessionId()).toBeNull()
+    expect(localStorage.getItem('metricpanel_consent:site_consent')).toBeNull()
+    expect(sessionStorage.getItem('metricpanel_attribution:site_consent')).toBeNull()
+    expect(sessionStorage.getItem('metricpanel_referrer:site_consent')).toBeNull()
     expect(localStorage.getItem('mtrk_consent:site_consent')).toBeNull()
     expect(sessionStorage.getItem('mtrk_attr:site_consent')).toBeNull()
     expect(sessionStorage.getItem('mtrk_ref:site_consent')).toBeNull()
     expect(document.cookie).not.toMatch(/mtrk_vid=[^;]/)
     expect(document.cookie).not.toMatch(/mtrk_sid=[^;]/)
+  })
+
+  it('migrates legacy browser identity and website-scoped storage without splitting the visitor', async () => {
+    setUrl('https://customer.example/pricing')
+    const visitorId = '11111111111111111111111111111111'
+    const sessionId = '22222222222222222222222222222222'
+    const attribution = JSON.stringify({
+      sessionId,
+      attribution: { source: 'legacy-campaign' },
+    })
+    const referrer = JSON.stringify({
+      sessionId,
+      referrer: 'https://example.com/referral',
+    })
+    document.cookie = `mtrk_vid=${visitorId};path=/`
+    document.cookie = `mtrk_sid=${sessionId};path=/`
+    localStorage.setItem('mtrk_consent:site_migration', 'granted')
+    sessionStorage.setItem('mtrk_attr:site_migration', attribution)
+    sessionStorage.setItem('mtrk_ref:site_migration', referrer)
+    const fetchMock = mockTransport()
+
+    const metricpanel = createMetricPanel({
+      websiteId: 'site_migration',
+      waitForConsent: true,
+    })
+    await metricpanel.pageview()
+
+    expect(requestBody(fetchMock)).toMatchObject({
+      visitorId,
+      sessionId,
+      referrer: 'https://example.com/referral',
+      utm: { source: 'legacy-campaign' },
+    })
+    expect(document.cookie).toContain(`metricpanel_visitor=${visitorId}`)
+    expect(document.cookie).toContain(`metricpanel_session=${sessionId}`)
+    expect(document.cookie).not.toMatch(/mtrk_vid=[^;]/)
+    expect(document.cookie).not.toMatch(/mtrk_sid=[^;]/)
+    expect(localStorage.getItem('metricpanel_consent:site_migration')).toBe('granted')
+    expect(sessionStorage.getItem('metricpanel_attribution:site_migration')).toBe(attribution)
+    expect(sessionStorage.getItem('metricpanel_referrer:site_migration')).toBe(referrer)
+    expect(localStorage.getItem('mtrk_consent:site_migration')).toBeNull()
+    expect(sessionStorage.getItem('mtrk_attr:site_migration')).toBeNull()
+    expect(sessionStorage.getItem('mtrk_ref:site_migration')).toBeNull()
   })
 
   it('caps event properties and reports rejected ingestion without breaking the application', async () => {

@@ -49,9 +49,16 @@ export interface PrivacyMode {
   anonymizeIP?: boolean
 }
 
-const ATTRIBUTION_STORAGE_PREFIX = 'mtrk_attr:'
-const REFERRER_STORAGE_PREFIX = 'mtrk_ref:'
-const CONSENT_STORAGE_PREFIX = 'mtrk_consent:'
+const VISITOR_COOKIE = 'metricpanel_visitor'
+const SESSION_COOKIE = 'metricpanel_session'
+const ATTRIBUTION_STORAGE_PREFIX = 'metricpanel_attribution:'
+const REFERRER_STORAGE_PREFIX = 'metricpanel_referrer:'
+const CONSENT_STORAGE_PREFIX = 'metricpanel_consent:'
+const LEGACY_VISITOR_COOKIE = 'mtrk_vid'
+const LEGACY_SESSION_COOKIE = 'mtrk_sid'
+const LEGACY_ATTRIBUTION_STORAGE_PREFIX = 'mtrk_attr:'
+const LEGACY_REFERRER_STORAGE_PREFIX = 'mtrk_ref:'
+const LEGACY_CONSENT_STORAGE_PREFIX = 'mtrk_consent:'
 export const METRICPANEL_API_URL = 'https://api.metricpanel.io/api'
 const ATTRIBUTION_KEYS = [
   'source',
@@ -110,6 +117,22 @@ export class MetricPanelSDK {
     this.consentMode = this.config.waitForConsent || false
     this.consentGranted = !this.consentMode // If not in consent mode, assume consent
 
+    this.migrateStorageKey(
+      localStorage,
+      this.getConsentStorageKey(),
+      this.getLegacyConsentStorageKey()
+    )
+    this.migrateStorageKey(
+      sessionStorage,
+      this.getAttributionStorageKey(),
+      this.getLegacyAttributionStorageKey()
+    )
+    this.migrateStorageKey(
+      sessionStorage,
+      this.getReferrerStorageKey(),
+      this.getLegacyReferrerStorageKey()
+    )
+
     // Check for stored consent if in consent mode
     if (this.consentMode) {
       try {
@@ -152,8 +175,12 @@ export class MetricPanelSDK {
 
     // Generate or retrieve visitor/session IDs
     if (!this.config.cookieless) {
-      this.visitorId = this.getOrCreateId('mtrk_vid', 365 * 24 * 60 * 60 * 1000) // 365 days
-      this.sessionId = this.getOrCreateId('mtrk_sid', 30 * 60 * 1000) // 30 minutes
+      this.visitorId = this.getOrCreateId(
+        VISITOR_COOKIE,
+        LEGACY_VISITOR_COOKIE,
+        365 * 24 * 60 * 60 * 1000
+      ) // 365 days
+      this.sessionId = this.getOrCreateId(SESSION_COOKIE, LEGACY_SESSION_COOKIE, 30 * 60 * 1000) // 30 minutes
     } else {
       // Generate ephemeral IDs for cookieless mode
       this.visitorId = this.generateId()
@@ -319,16 +346,21 @@ export class MetricPanelSDK {
     // Clear stored consent
     try {
       localStorage.removeItem(this.getConsentStorageKey())
+      localStorage.removeItem(this.getLegacyConsentStorageKey())
       sessionStorage.removeItem(this.getAttributionStorageKey())
+      sessionStorage.removeItem(this.getLegacyAttributionStorageKey())
       sessionStorage.removeItem(this.getReferrerStorageKey())
+      sessionStorage.removeItem(this.getLegacyReferrerStorageKey())
     } catch (error) {
       this.log('Unable to clear consent from localStorage', error)
     }
 
     // Clear cookies if not in cookieless mode
     if (!this.config.cookieless) {
-      this.deleteCookie('mtrk_vid')
-      this.deleteCookie('mtrk_sid')
+      this.deleteCookie(VISITOR_COOKIE)
+      this.deleteCookie(SESSION_COOKIE)
+      this.deleteCookie(LEGACY_VISITOR_COOKIE)
+      this.deleteCookie(LEGACY_SESSION_COOKIE)
     }
 
     // Clear IDs
@@ -472,18 +504,34 @@ export class MetricPanelSDK {
   /**
    * Get or create ID with cookie storage
    */
-  private getOrCreateId(name: string, maxAge: number): string {
-    let id = this.getCookie(name)
+  private getOrCreateId(name: string, legacyName: string, maxAge: number): string {
+    let id = this.getCookie(name) || this.getCookie(legacyName)
 
     if (!id) {
       id = this.generateId()
-      this.setCookie(name, id, maxAge)
-    } else {
-      // Extend cookie duration on activity
-      this.setCookie(name, id, maxAge)
     }
 
+    // Persist under the canonical key and remove the legacy key without changing identity.
+    this.setCookie(name, id, maxAge)
+    this.deleteCookie(legacyName)
+
     return id
+  }
+
+  private migrateStorageKey(storage: Storage, name: string, legacyName: string): void {
+    try {
+      const current = storage.getItem(name)
+      const legacy = storage.getItem(legacyName)
+
+      if (current === null && legacy !== null) {
+        storage.setItem(name, legacy)
+      }
+      if (legacy !== null) {
+        storage.removeItem(legacyName)
+      }
+    } catch (error) {
+      this.log('Unable to migrate legacy browser storage', error)
+    }
   }
 
   /**
@@ -702,6 +750,18 @@ export class MetricPanelSDK {
 
   private getConsentStorageKey(): string {
     return `${CONSENT_STORAGE_PREFIX}${this.config.websiteId}`
+  }
+
+  private getLegacyAttributionStorageKey(): string {
+    return `${LEGACY_ATTRIBUTION_STORAGE_PREFIX}${this.config.websiteId}`
+  }
+
+  private getLegacyReferrerStorageKey(): string {
+    return `${LEGACY_REFERRER_STORAGE_PREFIX}${this.config.websiteId}`
+  }
+
+  private getLegacyConsentStorageKey(): string {
+    return `${LEGACY_CONSENT_STORAGE_PREFIX}${this.config.websiteId}`
   }
 
   /**

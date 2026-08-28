@@ -138,6 +138,13 @@ testing a local application. `destroy()` releases an instance without removing p
 `revokeConsent()` stops tracking and removes the website-scoped consent, attribution, and cookie
 identity state.
 
+Browser persistence uses MetricPanel-owned names: `metricpanel_visitor` and
+`metricpanel_session` for cookies, `metricpanel_attribution:<websiteId>` and
+`metricpanel_referrer:<websiteId>` for session storage, and
+`metricpanel_consent:<websiteId>` for consent storage. Version 1.1.2 automatically migrates the
+legacy `mtrk_*` browser keys on first initialization, preserving existing visitor and session IDs,
+campaign attribution, referrer, and granted consent while removing the legacy entries.
+
 Network failures never break the host application. Provide `onError` if the application needs
 diagnostic visibility:
 
