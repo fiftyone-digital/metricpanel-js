@@ -94,8 +94,11 @@ jobs:
           RELEASE_VERSION: ${{ steps.package.outputs.version }}
         shell: bash
         run: |
+          ENCODED_NAME="${PACKAGE_NAME//\//%2F}"
+          METADATA_URL="https://registry.npmjs.org/${ENCODED_NAME}/${RELEASE_VERSION}"
+
           for attempt in {1..24}; do
-            if test "$(bun pm view "${PACKAGE_NAME}@${RELEASE_VERSION}" version 2>/dev/null)" = "$RELEASE_VERSION"; then
+            if curl --fail --silent --show-error --output /dev/null "$METADATA_URL"; then
               exit 0
             fi
             sleep 5
