@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "fiftyone-digital/metricpanel",
-  "sourceCommit": "dd44f49d988fffa6ce6a8e04152571028179704c",
+  "sourceCommit": "6e52e93957e54c40776835dafdbdb1bf924835fa",
   "packages": [
     {
       "name": "@metricpanel/sdk",
