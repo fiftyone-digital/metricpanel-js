@@ -112,8 +112,17 @@ jobs:
           FIXTURE="$RUNNER_TEMP/registry-consumer"
           mkdir "$FIXTURE"
           cd "$FIXTURE"
-          bun init -y
-          bun add --exact "${PACKAGE_NAME}@${RELEASE_VERSION}"
+          printf '%s\n' '{"name":"registry-consumer","private":true,"type":"module"}' > package.json
+          INSTALLED=false
+          for attempt in {1..24}; do
+            if bun add --exact "${PACKAGE_NAME}@${RELEASE_VERSION}"; then
+              INSTALLED=true
+              break
+            fi
+            rm -rf node_modules bun.lock
+            sleep 5
+          done
+          test "$INSTALLED" = true
           if test "$PACKAGE_NAME" = "@metricpanel/sdk"; then
             bun -e "import('@metricpanel/sdk').then((m) => { if (m.METRICPANEL_API_URL !== 'https://api.metricpanel.io/api') process.exit(1) })"
             node -e "import('@metricpanel/sdk').then((m) => { if (typeof m.createMetricPanel !== 'function') process.exit(1) })"
