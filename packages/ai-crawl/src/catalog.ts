@@ -85,7 +85,7 @@ const apple = { documentationUrls: DOCUMENTATION.apple, ipRangeUrls: IP_RANGES.a
 const amazon = { documentationUrls: DOCUMENTATION.amazon, ipRangeUrls: IP_RANGES.amazon }
 const meta = { documentationUrls: DOCUMENTATION.meta }
 
-export const AI_CRAWLERS = [
+export const AI_CRAWLERS: readonly AICrawlerDefinition[] = [
   crawler('chatgpt-user', 'ChatGPT-User', 'OpenAI', 'answer', {
     ...openai,
     ipRangeUrls: IP_RANGES.chatgptUser,
@@ -204,7 +204,7 @@ export const AI_CRAWLERS = [
   crawler('semrushbot-ocob', 'SemrushBot-OCOB', 'Semrush', 'training'),
   crawler('petalbot', 'PetalBot', 'Huawei', 'indexing'),
   crawler('yandexbot', 'YandexBot', 'Yandex', 'indexing'),
-] as const satisfies readonly AICrawlerDefinition[]
+]
 
 const NORMALIZED_TOKENS = AI_CRAWLERS.flatMap((definition) =>
   definition.userAgentTokens.map((token) => ({
