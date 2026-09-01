@@ -137,6 +137,46 @@ describe('MetricPanelNativeSDK', () => {
     expect(body.properties.prop_11).toBeUndefined()
   })
 
+  it('validates goals, limits custom properties, and preserves the explicit value', async () => {
+    const fetch = vi.fn(async () => ({ ok: true, status: 202 }))
+    const metricpanel = createMetricPanelNative({
+      websiteId: 'web_123',
+      apiUrl: 'https://api.example.com/api',
+      visitorId: 'visitor_123',
+      sessionId: 'session_123',
+      fetch,
+    })
+
+    await expect(metricpanel.goal({ name: '', value: 100 })).rejects.toThrow(
+      'Goal name is required'
+    )
+    await expect(metricpanel.goal({ name: 'signup', value: -1 })).rejects.toThrow(
+      'Goal value must be a non-negative integer'
+    )
+    await expect(metricpanel.goal({ name: 'signup', value: 10.5 })).rejects.toThrow(
+      'Goal value must be a non-negative integer'
+    )
+    expect(fetch).not.toHaveBeenCalled()
+
+    await metricpanel.goal({
+      name: ' sales_qualified_lead ',
+      value: 25000,
+      properties: {
+        value: 1,
+        ...Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`prop_${index}`, index])),
+      },
+    })
+
+    const body = JSON.parse(fetch.mock.calls[0]?.[1].body)
+    expect(body).toMatchObject({
+      type: 'goal',
+      name: 'sales_qualified_lead',
+      properties: { value: 25000, prop_0: 0 },
+    })
+    expect(Object.keys(body.properties)).toHaveLength(11)
+    expect(body.properties.prop_11).toBeUndefined()
+  })
+
   it('validates and normalizes revenue before transport', async () => {
     const fetch = vi.fn(async () => ({ ok: true, status: 202 }))
     const metricpanel = createMetricPanelNative({

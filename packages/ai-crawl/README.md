@@ -137,7 +137,7 @@ trackAICrawlerRequest(request, event, {
 Available configuration:
 
 - `enabled`: disable tracking without removing middleware.
-- `apiUrl`: override the canonical API URL for self-hosting.
+- `apiUrl`: route ingestion through a configured first-party proxy.
 - `publicOrigin`: replace an internal container or proxy origin while retaining path and query.
 - `source`: identify the integration that generated the event.
 - `methods`: HTTP methods to track; defaults to `GET` and `HEAD`.

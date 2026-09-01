@@ -266,6 +266,42 @@ describe('MetricPanel browser SDK', () => {
     )
   })
 
+  it('validates goals, limits custom properties, and preserves the explicit value', async () => {
+    const fetchMock = mockTransport()
+    const metricpanel = createMetricPanel({ websiteId: 'site_goals' })
+
+    await expect(metricpanel.goal({ name: '', value: 100 })).rejects.toThrow(
+      'Goal name is required'
+    )
+    await expect(metricpanel.goal({ name: 'signup', value: -1 })).rejects.toThrow(
+      'Goal value must be a non-negative integer'
+    )
+    await expect(metricpanel.goal({ name: 'signup', value: 10.5 })).rejects.toThrow(
+      'Goal value must be a non-negative integer'
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    await metricpanel.goal({
+      name: ' sales_qualified_lead ',
+      value: 25000,
+      properties: {
+        value: 1,
+        ...Object.fromEntries(
+          Array.from({ length: 12 }, (_, index) => [`property_${index}`, index])
+        ),
+      },
+    })
+
+    const body = requestBody(fetchMock)
+    expect(body).toMatchObject({
+      type: 'goal',
+      name: 'sales_qualified_lead',
+      properties: { value: 25000, property_0: 0 },
+    })
+    expect(Object.keys(body.properties)).toHaveLength(11)
+    expect(body.properties.property_11).toBeUndefined()
+  })
+
   it('validates and normalizes revenue before transport', async () => {
     const fetchMock = mockTransport()
     const metricpanel = createMetricPanel({ websiteId: 'site_revenue' })
