@@ -54,8 +54,8 @@ await metricpanel.goal({ name: 'signup' })
 
 The browser SDK defaults to `https://api.metricpanel.io/api` and sends events to
 `https://api.metricpanel.io/api/events`. The explicit value above makes the hosted destination
-obvious in copied configuration. To use a first-party proxy or a self-hosted MetricPanel API,
-override `apiUrl` with the base path that owns the `/events` route:
+obvious in copied configuration. To use a first-party proxy, override `apiUrl` with the base path
+that forwards the `/events` route to MetricPanel:
 
 ```typescript
 const metricpanel = createMetricPanel({
