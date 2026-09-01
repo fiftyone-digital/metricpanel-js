@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import packageJson from '../package.json'
 import {
   AI_CRAWLERS,
-  classifyAICrawlerUserAgent,
   createExpressAICrawlerMiddleware,
   createMetricPanelAICrawl,
   detectAICrawler,
@@ -9,6 +9,7 @@ import {
   shouldTrackAICrawlerRequest,
   trackAICrawlerRequest,
   trackAICrawlerResponse,
+  withAICrawlerTracking,
 } from './index'
 
 const BASE_CONFIG = {
@@ -65,7 +66,7 @@ describe('AI crawler catalog', () => {
   })
 
   it('classifies answer, indexing, training, and other crawlers', () => {
-    expect(classifyAICrawlerUserAgent('ChatGPT-User/1.0')?.category).toBe('answer')
+    expect(detectAICrawler('ChatGPT-User/1.0')?.category).toBe('answer')
     expect(detectAICrawler('Googlebot/2.1')?.category).toBe('indexing')
     expect(detectAICrawler('GoogleOther/1.0')?.category).toBe('training')
     expect(detectAICrawler('FacebookBot/1.0')?.category).toBe('other')
@@ -78,15 +79,14 @@ describe('AI crawler catalog', () => {
 
 describe('request filtering', () => {
   it('tracks GET and HEAD document requests by default', () => {
-    expect(shouldTrackAICrawlerRequest(crawlerRequest('/docs'), BASE_CONFIG).crawler?.id).toBe(
-      'gptbot'
+    const getDecision = shouldTrackAICrawlerRequest(crawlerRequest('/docs'), BASE_CONFIG)
+    const headDecision = shouldTrackAICrawlerRequest(
+      crawlerRequest('/docs', 'GPTBot/1.2', { method: 'HEAD' }),
+      BASE_CONFIG
     )
-    expect(
-      shouldTrackAICrawlerRequest(
-        crawlerRequest('/docs', 'GPTBot/1.2', { method: 'HEAD' }),
-        BASE_CONFIG
-      ).crawler?.id
-    ).toBe('gptbot')
+
+    expect(getDecision).toMatchObject({ shouldTrack: true, crawler: { id: 'gptbot' } })
+    expect(headDecision).toMatchObject({ shouldTrack: true, crawler: { id: 'gptbot' } })
   })
 
   it('filters methods, categories, assets, internals, and fetch destinations', () => {
@@ -128,8 +128,7 @@ describe('request filtering', () => {
     'keeps crawler-facing discovery resource %s trackable',
     (path) => {
       const decision = shouldTrackAICrawlerRequest(crawlerRequest(path), BASE_CONFIG)
-      expect(decision.crawler?.id).toBe('gptbot')
-      expect(decision.reason).toBeUndefined()
+      expect(decision).toMatchObject({ shouldTrack: true, crawler: { id: 'gptbot' } })
     }
   )
 
@@ -146,7 +145,7 @@ describe('request filtering', () => {
       shouldTrackPath: (url, crawler) =>
         url.hostname === 'www.example.com' && crawler.id === 'claude-user',
     })
-    expect(accepted.url?.href).toBe('https://www.example.com/private/report')
+    expect(accepted.shouldTrack && accepted.url.href).toBe('https://www.example.com/private/report')
 
     expect(
       shouldTrackAICrawlerRequest(request, {
@@ -169,7 +168,12 @@ describe('tracking helpers', () => {
     })
 
     const human = crawlerRequest('/pricing', 'Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36')
-    expect(await tracker.track(human)).toBe(false)
+    expect(await tracker.track(human)).toMatchObject({
+      state: 'skipped',
+      tracked: false,
+      scheduled: false,
+      reason: 'not_ai_crawler',
+    })
 
     const crawler = crawlerRequest('/docs?source=chatgpt', 'ChatGPT-User/1.0', {
       headers: { 'cf-connecting-ip': '203.0.113.10' },
@@ -179,7 +183,13 @@ describe('tracking helpers', () => {
         crawler,
         new Response(null, { status: 404, headers: { 'content-type': 'text/html' } })
       )
-    ).toBe(true)
+    ).toMatchObject({
+      state: 'tracked',
+      tracked: true,
+      scheduled: false,
+      crawler: { id: 'chatgpt-user' },
+      status: 202,
+    })
     expect(fetcher).toHaveBeenCalledOnce()
     expect(fetcher).toHaveBeenCalledWith(
       'https://api.example.test/ai-crawls',
@@ -187,7 +197,9 @@ describe('tracking helpers', () => {
     )
     const init = fetcher.mock.calls[0]?.[1]
     if (!init) throw new Error('Expected MetricPanel request options')
-    expect(new Headers(init.headers).get('User-Agent')).toBe('@metricpanel/ai-crawl/0.2.2')
+    expect(new Headers(init.headers).get('User-Agent')).toBe(
+      `${packageJson.name}/${packageJson.version}`
+    )
     expect(JSON.parse(String(init.body))).toMatchObject({
       websiteId: 'site_public_id',
       href: 'https://example.com/docs?source=chatgpt',
@@ -209,7 +221,12 @@ describe('tracking helpers', () => {
       { ...BASE_CONFIG, fetch: fetcher }
     )
 
-    expect(result).toMatchObject({ scheduled: true, crawler: { id: 'gptbot' } })
+    expect(result).toMatchObject({
+      state: 'scheduled',
+      tracked: false,
+      scheduled: true,
+      crawler: { id: 'gptbot' },
+    })
     expect(pending).toHaveLength(1)
     await Promise.all(pending)
     expect(fetcher).toHaveBeenCalledOnce()
@@ -219,7 +236,7 @@ describe('tracking helpers', () => {
     const pending: Promise<unknown>[] = []
     const fetcher = vi.fn<typeof fetch>(async () => new Response(null, { status: 202 }))
 
-    trackAICrawlerResponse(
+    const result = trackAICrawlerResponse(
       crawlerRequest('/missing'),
       new Response(null, { status: 404 }),
       (promise) => pending.push(promise),
@@ -227,8 +244,59 @@ describe('tracking helpers', () => {
     )
     await Promise.all(pending)
 
+    expect(result).toMatchObject({ state: 'scheduled', tracked: false, scheduled: true })
     const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))
     expect(body.status).toBe(404)
+  })
+
+  it('distinguishes API failures from skipped and scheduled requests', async () => {
+    const result = await trackAICrawlerRequest(crawlerRequest('/unavailable'), {
+      ...BASE_CONFIG,
+      fetch: async () => new Response(null, { status: 503 }),
+    })
+
+    expect(result).toMatchObject({
+      state: 'failed',
+      tracked: false,
+      scheduled: false,
+      reason: 'api_error',
+      status: 503,
+    })
+  })
+
+  it('returns an explicit scheduled result when the instance owns waitUntil', async () => {
+    const pending: Promise<unknown>[] = []
+    const tracker = createMetricPanelAICrawl({
+      ...BASE_CONFIG,
+      waitUntil: (promise) => pending.push(promise),
+      fetch: async () => new Response(null, { status: 202 }),
+    })
+
+    await expect(tracker.track(crawlerRequest('/background'))).resolves.toMatchObject({
+      state: 'scheduled',
+      tracked: false,
+      scheduled: true,
+    })
+    await Promise.all(pending)
+  })
+
+  it('does not mistake an arbitrary handler callback for a lifecycle waitUntil hook', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(null, { status: 202 }))
+    const callback = vi.fn()
+    const wrapped = withAICrawlerTracking(
+      async (request: Request, handlerCallback: () => void) => {
+        expect(request).toBeInstanceOf(Request)
+        expect(handlerCallback).toBe(callback)
+        return new Response(null, { status: 204 })
+      },
+      { ...BASE_CONFIG, fetch: fetcher }
+    )
+
+    await expect(wrapped(crawlerRequest('/callback'), callback)).resolves.toMatchObject({
+      status: 204,
+    })
+    expect(callback).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
   })
 
   it('captures Express response status after finish and calls next immediately', async () => {

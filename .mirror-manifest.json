@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "fiftyone-digital/metricpanel",
-  "sourceCommit": "a70fc413320e7ba67c612e9e743be1d253056eef",
+  "sourceCommit": "36fa99dc575aa9b6b3eacbe6994a466abe1c6aa6",
   "packages": [
     {
       "name": "@metricpanel/sdk",
@@ -29,14 +29,16 @@
         ".prettierignore": "9257855fe4e7b663667fad0eeb9f317313cf81ad4e50d0600fd3f2a4ebba02eb",
         ".prettierrc.json": "a2d9040c371a1574e7d5e0efcc34f3546cca35c85980f55be1dc415ac96f4899",
         "LICENSE": "dfcfcf3e5ea0d00c0c2161cfe77d98e237ac6c1ec114d926e43113805012cf63",
-        "README.md": "4c941916cec8929393db2de2abd56c4c055bdae6563be8e7cd19d0a5b510adee",
+        "README.md": "1caec20819680b6f04cc62217c148c95cfcc5d4605d8418480ae7ad8e983b860",
         "eslint.config.mjs": "cc1b4e2212e3db29d6821356f8991b5663f668fd3b5abf294f8c29523dad5423",
-        "package.json": "c4aaab9888311646fe96639f51d31a3fc194eb474a91b59ee2b11325d4f9cfa2",
-        "src/catalog.ts": "f360c1e921118758343e5291ed3b68045f7e92c744a24bb8f114ab1fac21bf3d",
-        "src/index.test.ts": "f757a40a7272f3b22137880e6b1f78a92818795dbb7a1e680ff1661303a5f19e",
-        "src/index.ts": "fa37384c0ef308da51d26fecd2f49790df2131efa54819289573b96cb18e8f17",
+        "package.json": "56430c00ab1d1ccc3c053f27e4d2db8bbf3777c86d7a331d7645abe4b5228f73",
+        "scripts/check-package.ts": "530b0e09d2539c9bedf1cff55bfe9e97be1e93e2e7050c1232d00b35f1800f10",
+        "scripts/finalize-types.ts": "90484bbdafdaa61af412bea00c3003361310c235c34c12b131d09c6e11ea1a9a",
+        "src/catalog.ts": "106dd6dde0a7d4fa726424876b61a9a49cb985dcf715bb48938a870e00b3639a",
+        "src/index.test.ts": "890daa9067cb3696c134c7407922575ddb2f68418532e0e98d05d4b3864b3d9b",
+        "src/index.ts": "fd57bfd68632cb9b59634caead388367a354886b8e82a0f7d80403a00308dcff",
         "tsconfig.build.json": "1b195d8dd47f26ce23b7dfbaf9967d87547172921e485318537e2216abc04d92",
-        "tsconfig.json": "5fd9293151df438a13c81290e953f2da064fcd377237f9a4d52675e141a88517"
+        "tsconfig.json": "24fd20452f787ad00ae8688b28b8e9ef53a16ce38e015fbe82d30a8619594a4f"
       }
     }
   ]

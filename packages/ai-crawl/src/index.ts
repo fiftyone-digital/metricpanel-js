@@ -1,13 +1,14 @@
 export { AI_CRAWLERS, AI_CRAWLER_CATEGORY, detectAICrawler, getAICrawlerById } from './catalog'
 export type { AICrawlerCategory, AICrawlerDefinition } from './catalog'
 
+import packageJson from '../package.json'
 import { detectAICrawler, type AICrawlerDefinition } from './catalog'
 
 const DEFAULT_API_URL = 'https://api.metricpanel.io'
 const DEFAULT_TIMEOUT_MS = 1_500
 const DEFAULT_MAX_URL_LENGTH = 8_192
 const API_TOKEN_PREFIX = 'mp_live_'
-const PACKAGE_USER_AGENT = '@metricpanel/ai-crawl/0.2.2'
+const PACKAGE_USER_AGENT = `${packageJson.name}/${packageJson.version}`
 const DEFAULT_METHODS = ['GET', 'HEAD'] as const
 const CLIENT_IP_HEADERS = [
   'cf-connecting-ip',
@@ -105,13 +106,51 @@ export type MetricPanelAICrawlSkipReason =
   | 'ignored_file_extension'
   | 'path_rejected'
 
-export type MetricPanelAICrawlResult = {
-  tracked: boolean
-  scheduled?: boolean
-  reason?: MetricPanelAICrawlSkipReason | 'api_error' | 'network_error'
-  crawler?: AICrawlerDefinition
-  status?: number
-}
+export type MetricPanelAICrawlFailureReason = 'api_error' | 'network_error'
+
+export type MetricPanelAICrawlDecision =
+  | {
+      shouldTrack: false
+      reason: MetricPanelAICrawlSkipReason
+      crawler?: AICrawlerDefinition
+      url?: never
+    }
+  | {
+      shouldTrack: true
+      crawler: AICrawlerDefinition
+      url: URL
+      reason?: never
+    }
+
+export type MetricPanelAICrawlResult =
+  | {
+      state: 'skipped'
+      tracked: false
+      scheduled: false
+      reason: MetricPanelAICrawlSkipReason
+      crawler?: AICrawlerDefinition
+    }
+  | {
+      state: 'scheduled'
+      tracked: false
+      scheduled: true
+      crawler: AICrawlerDefinition
+    }
+  | {
+      state: 'tracked'
+      tracked: true
+      scheduled: false
+      crawler: AICrawlerDefinition
+      status: number
+    }
+  | {
+      state: 'failed'
+      tracked: false
+      scheduled: false
+      reason: MetricPanelAICrawlFailureReason
+      crawler: AICrawlerDefinition
+      status?: number
+    }
 
 export type MetricPanelAICrawlConfig = {
   websiteId: string
@@ -120,8 +159,6 @@ export type MetricPanelAICrawlConfig = {
   source?: string
   publicOrigin?: string
   enabled?: boolean
-  /** @deprecated Use disableSearchCrawlers. */
-  includeSearchCrawlers?: boolean
   disableAnswerFetch?: boolean
   disableSearchCrawlers?: boolean
   disableTrainingCrawlers?: boolean
@@ -159,14 +196,12 @@ export type MetricPanelWaitUntilTarget =
   | undefined
 
 export type MetricPanelAICrawl = {
-  track(request: Request, response?: AICrawlResponse): Promise<boolean>
-  shouldTrack(request: Request): MetricPanelAICrawlResult
+  track(request: Request, response?: AICrawlResponse): Promise<MetricPanelAICrawlResult>
+  shouldTrack(request: Request): MetricPanelAICrawlDecision
   withHandler<T extends AICrawlResponse>(
     handler: (request: Request) => T | Promise<T>
   ): (request: Request) => Promise<T>
 }
-
-type TrackingDecision = MetricPanelAICrawlResult & { crawler?: AICrawlerDefinition; url?: URL }
 
 function required(value: string, name: string) {
   const normalized = value?.trim()
@@ -220,10 +255,7 @@ function hasIgnoredExtension(pathname: string, extensions: Set<string>) {
 }
 
 function shouldTrackCategory(crawler: AICrawlerDefinition, config: MetricPanelAICrawlConfig) {
-  if (
-    (config.includeSearchCrawlers === false || config.disableSearchCrawlers) &&
-    crawler.category === 'indexing'
-  ) {
+  if (config.disableSearchCrawlers && crawler.category === 'indexing') {
     return false
   }
   if (config.disableAnswerFetch && crawler.category === 'answer') return false
@@ -289,31 +321,27 @@ function getContentType(response?: AICrawlResponse) {
   return response?.headers?.get('content-type') ?? undefined
 }
 
-export function classifyAICrawlerUserAgent(userAgent: string | null | undefined) {
-  return detectAICrawler(userAgent)
-}
-
 export function shouldTrackAICrawlerRequest(
   request: Request,
   config: MetricPanelAICrawlConfig
-): TrackingDecision {
-  if (config.enabled === false) return { tracked: false, reason: 'disabled' }
-  if (!config.websiteId?.trim()) return { tracked: false, reason: 'missing_website_id' }
-  if (!config.token?.trim()) return { tracked: false, reason: 'missing_token' }
+): MetricPanelAICrawlDecision {
+  if (config.enabled === false) return { shouldTrack: false, reason: 'disabled' }
+  if (!config.websiteId?.trim()) return { shouldTrack: false, reason: 'missing_website_id' }
+  if (!config.token?.trim()) return { shouldTrack: false, reason: 'missing_token' }
   if (!config.token.trim().startsWith(API_TOKEN_PREFIX)) {
-    return { tracked: false, reason: 'invalid_token' }
+    return { shouldTrack: false, reason: 'invalid_token' }
   }
 
   const methods = (config.methods ?? DEFAULT_METHODS).map((method) => method.toUpperCase())
   if (!methods.includes(request.method.toUpperCase())) {
-    return { tracked: false, reason: 'method_not_tracked' }
+    return { shouldTrack: false, reason: 'method_not_tracked' }
   }
 
   const crawler = detectAICrawler(request.headers.get('user-agent'))
-  if (!crawler) return { tracked: false, reason: 'not_ai_crawler' }
+  if (!crawler) return { shouldTrack: false, reason: 'not_ai_crawler' }
   if (!shouldTrackCategory(crawler, config)) {
     return {
-      tracked: false,
+      shouldTrack: false,
       reason: crawler.category === 'indexing' ? 'search_crawler_skipped' : 'category_skipped',
       crawler,
     }
@@ -321,15 +349,15 @@ export function shouldTrackAICrawlerRequest(
 
   const url = getRequestUrl(request, config)
   if (!url || !['http:', 'https:'].includes(url.protocol)) {
-    return { tracked: false, reason: 'invalid_url', crawler }
+    return { shouldTrack: false, reason: 'invalid_url', crawler }
   }
   if (url.href.length > (config.maxUrlLength ?? DEFAULT_MAX_URL_LENGTH)) {
-    return { tracked: false, reason: 'url_too_long', crawler }
+    return { shouldTrack: false, reason: 'url_too_long', crawler }
   }
 
   const fetchDestination = request.headers.get('sec-fetch-dest')?.toLowerCase() ?? ''
   if (STATIC_FETCH_DESTINATIONS.has(fetchDestination)) {
-    return { tracked: false, reason: 'static_fetch_destination', crawler }
+    return { shouldTrack: false, reason: 'static_fetch_destination', crawler }
   }
 
   const pathname = normalizePathname(url.pathname)
@@ -338,22 +366,22 @@ export function shouldTrackAICrawlerRequest(
     !crawlerFacing &&
     getIgnoredPathPrefixes(config).some((prefix) => pathStartsWith(pathname, prefix))
   ) {
-    return { tracked: false, reason: 'ignored_path_prefix', crawler }
+    return { shouldTrack: false, reason: 'ignored_path_prefix', crawler }
   }
   if (!crawlerFacing && hasIgnoredExtension(pathname, getIgnoredExtensions(config))) {
-    return { tracked: false, reason: 'ignored_file_extension', crawler }
+    return { shouldTrack: false, reason: 'ignored_file_extension', crawler }
   }
   if (config.shouldTrackPath) {
     try {
       if (!config.shouldTrackPath(url, crawler)) {
-        return { tracked: false, reason: 'path_rejected', crawler }
+        return { shouldTrack: false, reason: 'path_rejected', crawler }
       }
     } catch {
-      return { tracked: false, reason: 'path_rejected', crawler }
+      return { shouldTrack: false, reason: 'path_rejected', crawler }
     }
   }
 
-  return { tracked: false, crawler, url }
+  return { shouldTrack: true, crawler, url }
 }
 
 function trimTrailingSlash(value: string) {
@@ -389,18 +417,46 @@ async function fetchWithTimeout(
   }
 }
 
+type SkippedDecision = Extract<MetricPanelAICrawlDecision, { shouldTrack: false }>
+type TrackableDecision = Extract<MetricPanelAICrawlDecision, { shouldTrack: true }>
+
+function skippedResult(decision: SkippedDecision): MetricPanelAICrawlResult {
+  return {
+    state: 'skipped',
+    tracked: false,
+    scheduled: false,
+    reason: decision.reason,
+    ...(decision.crawler ? { crawler: decision.crawler } : {}),
+  }
+}
+
+function scheduledResult(decision: TrackableDecision): MetricPanelAICrawlResult {
+  return {
+    state: 'scheduled',
+    tracked: false,
+    scheduled: true,
+    crawler: decision.crawler,
+  }
+}
+
 async function sendAICrawlerRequest(
   request: Request,
   config: MetricPanelAICrawlConfig,
-  decision: TrackingDecision = shouldTrackAICrawlerRequest(request, config),
+  decision: MetricPanelAICrawlDecision = shouldTrackAICrawlerRequest(request, config),
   response?: AICrawlResponse,
   context?: MetricPanelWaitUntilContext
 ): Promise<MetricPanelAICrawlResult> {
-  if (!decision.crawler || !decision.url) return decision
+  if (!decision.shouldTrack) return skippedResult(decision)
 
   const fetcher = config.fetch ?? globalThis.fetch
   if (!fetcher) {
-    return { tracked: false, reason: 'network_error', crawler: decision.crawler }
+    return {
+      state: 'failed',
+      tracked: false,
+      scheduled: false,
+      reason: 'network_error',
+      crawler: decision.crawler,
+    }
   }
 
   try {
@@ -436,16 +492,30 @@ async function sendAICrawlerRequest(
         new Error(`MetricPanel AI crawl ingestion failed with HTTP ${result.status}`)
       )
       return {
+        state: 'failed',
         tracked: false,
+        scheduled: false,
         reason: 'api_error',
         crawler: decision.crawler,
         status: result.status,
       }
     }
-    return { tracked: true, crawler: decision.crawler, status: result.status }
+    return {
+      state: 'tracked',
+      tracked: true,
+      scheduled: false,
+      crawler: decision.crawler,
+      status: result.status,
+    }
   } catch (error) {
     reportError(config, error)
-    return { tracked: false, reason: 'network_error', crawler: decision.crawler }
+    return {
+      state: 'failed',
+      tracked: false,
+      scheduled: false,
+      reason: 'network_error',
+      crawler: decision.crawler,
+    }
   }
 }
 
@@ -489,13 +559,13 @@ export function trackAICrawlerRequest(
   return sendAICrawlerRequest(request, contextOrConfig as MetricPanelAICrawlConfig)
 }
 
-export function trackAICrawlerRequestInBackground(
+function trackAICrawlerRequestInBackground(
   request: Request,
   context: MetricPanelWaitUntilTarget,
   config: MetricPanelAICrawlConfig
 ): MetricPanelAICrawlResult {
   const decision = shouldTrackAICrawlerRequest(request, config)
-  if (!decision.crawler || !decision.url) return decision
+  if (!decision.shouldTrack) return skippedResult(decision)
 
   const eventContext =
     context && typeof context === 'object' && 'waitUntil' in context ? context : undefined
@@ -504,7 +574,7 @@ export function trackAICrawlerRequestInBackground(
     config,
     sendAICrawlerRequest(request, config, decision, eventContext?.response, eventContext)
   )
-  return { tracked: false, scheduled: true, crawler: decision.crawler }
+  return scheduledResult(decision)
 }
 
 export function trackAICrawlerResponse(
@@ -527,22 +597,19 @@ export function trackAICrawlerResponse(
   const config = maybeConfig ?? (contextOrConfig as MetricPanelAICrawlConfig)
   const context = maybeConfig ? (contextOrConfig as MetricPanelWaitUntilTarget) : config.waitUntil
   const decision = shouldTrackAICrawlerRequest(request, config)
-  if (!decision.crawler || !decision.url) return decision
+  if (!decision.shouldTrack) return skippedResult(decision)
 
   scheduleWaitUntil(context, config, sendAICrawlerRequest(request, config, decision, response))
-  return { tracked: false, scheduled: true, crawler: decision.crawler }
+  return scheduledResult(decision)
 }
 
 function findWaitUntilTarget(args: unknown[]): MetricPanelWaitUntilTarget {
   return args.find(
     (argument) =>
-      typeof argument === 'function' ||
-      Boolean(
-        argument &&
-          typeof argument === 'object' &&
-          'waitUntil' in argument &&
-          typeof argument.waitUntil === 'function'
-      )
+      argument &&
+      typeof argument === 'object' &&
+      'waitUntil' in argument &&
+      typeof argument.waitUntil === 'function'
   ) as MetricPanelWaitUntilTarget
 }
 
@@ -603,7 +670,7 @@ export function createExpressAICrawlerMiddleware(config: MetricPanelAICrawlConfi
     try {
       const webRequest = createRequestFromNodeRequest(request)
       const decision = shouldTrackAICrawlerRequest(webRequest, config)
-      if (decision.crawler && decision.url) {
+      if (decision.shouldTrack) {
         const send = () => {
           void sendAICrawlerRequest(webRequest, config, decision, {
             statusCode: normalizeStatusCode(response?.statusCode),
@@ -636,16 +703,16 @@ export function createMetricPanelAICrawl(config: MetricPanelAICrawlConfig): Metr
     },
     async track(request, response) {
       const decision = shouldTrackAICrawlerRequest(request, normalizedConfig)
-      if (!decision.crawler || !decision.url) return false
+      if (!decision.shouldTrack) return skippedResult(decision)
       if (normalizedConfig.waitUntil) {
         scheduleWaitUntil(
           normalizedConfig.waitUntil,
           normalizedConfig,
           sendAICrawlerRequest(request, normalizedConfig, decision, response)
         )
-        return true
+        return scheduledResult(decision)
       }
-      return (await sendAICrawlerRequest(request, normalizedConfig, decision, response)).tracked
+      return sendAICrawlerRequest(request, normalizedConfig, decision, response)
     },
     withHandler<T extends AICrawlResponse>(handler: (request: Request) => T | Promise<T>) {
       return async (request: Request) => {

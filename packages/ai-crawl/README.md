@@ -119,6 +119,19 @@ app.use('*', async (context, next) => {
 Use `trackAICrawlerRequest(request, config)` when you want the awaited result, or
 `trackAICrawlerRequest(request, context, config)` for non-blocking platform scheduling.
 
+## Result contract
+
+`shouldTrackAICrawlerRequest` returns an eligibility decision with an explicit `shouldTrack`
+discriminant. Tracking helpers return a result with one of four stable states:
+
+- `skipped`: the request did not pass the local crawler, method, category, or path filters.
+- `scheduled`: delivery was handed to a background lifecycle hook or started as best-effort work.
+- `tracked`: the MetricPanel ingestion endpoint accepted the awaited request.
+- `failed`: an awaited request failed at the network or API boundary.
+
+`tracked` is only `true` for the `tracked` state. `scheduled` is only `true` for the `scheduled`
+state, so background scheduling is never reported as confirmed delivery.
+
 ## Filtering and configuration
 
 All crawler categories are enabled by default. Opt out without changing middleware placement:
@@ -151,9 +164,6 @@ Available configuration:
 - `shouldTrackPath`: apply a final application-specific path predicate.
 - `onError` and `debug`: observe best-effort tracking failures without breaking the host app.
 
-`includeSearchCrawlers: false` remains available for compatibility; prefer
-`disableSearchCrawlers: true`.
-
 ## What gets tracked
 
 The package classifies known answer engines, AI/search indexing agents, training crawlers, and other
@@ -165,13 +175,22 @@ Local user-agent matching is a fast prefilter. MetricPanel's ingestion API class
 again and verifies its IP against provider-published ranges when available, so the server remains
 the source of truth as the catalog evolves.
 
+The event payload contains the website ID, full requested URL including its query string, HTTP
+method, crawler user agent, available client IP, response status and content type, integration
+source, and timestamp. The ingest token is sent only in the authorization header. MetricPanel uses
+raw IPs only for provider-range verification and stores the resulting hash, not the raw address.
+
+Crawler IDs and the four category values are stable across 1.x. New crawler definitions and new
+provider documentation or range sources may be added without a major release; existing IDs are not
+renamed or reused within 1.x.
+
 ## Convenience tracker
 
 `createMetricPanelAICrawl` provides a small instance API for integrations that prefer it:
 
 ```ts
 const crawls = createMetricPanelAICrawl({ websiteId, token, waitUntil })
-await crawls.track(request, response)
+const result = await crawls.track(request, response)
 const wrapped = crawls.withHandler(handler)
 ```
 
