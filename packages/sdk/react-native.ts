@@ -95,6 +95,7 @@ export type MetricPanelNativeEventType = 'pageview' | 'event' | 'revenue' | 'goa
 
 const VISITOR_ID_KEY = 'mtrk_native_vid'
 const SESSION_ID_KEY = 'mtrk_native_sid'
+const MAX_CUSTOM_PROPERTIES = 10
 
 export class MetricPanelNativeSDK {
   private readonly config: MetricPanelNativeConfig
@@ -182,16 +183,22 @@ export class MetricPanelNativeSDK {
   }
 
   async goal(data: GoalData): Promise<void> {
-    if (!data?.name) {
+    if (!data || typeof data.name !== 'string' || !data.name.trim()) {
       throw new Error('Goal name is required')
     }
+    if (data.value !== undefined && (!Number.isSafeInteger(data.value) || data.value < 0)) {
+      throw new Error('Goal value must be a non-negative integer in the smallest currency unit')
+    }
+    const { value: propertyValue, ...customProperties } = data.properties ?? {}
 
     return this.track('goal', {
-      name: data.name,
-      properties: normalizeProperties({
-        value: data.value ?? null,
-        ...data.properties,
-      }),
+      name: data.name.trim(),
+      properties: normalizeProperties(
+        customProperties,
+        data.value !== undefined || propertyValue !== undefined
+          ? { value: data.value ?? propertyValue }
+          : undefined
+      ),
     })
   }
 
@@ -260,6 +267,13 @@ export class MetricPanelNativeSDK {
     }
 
     const inputProperties = data.properties as EventProperties | undefined
+    const goalValue = type === 'goal' ? inputProperties?.value : undefined
+    const customProperties =
+      type === 'goal' && inputProperties
+        ? (Object.fromEntries(
+            Object.entries(inputProperties).filter(([key]) => key !== 'value')
+          ) as EventProperties)
+        : inputProperties
     const payload = {
       websiteId: this.config.websiteId,
       visitorId: this.visitorId,
@@ -282,12 +296,15 @@ export class MetricPanelNativeSDK {
         anonymizeIP: this.config.anonymizeIP,
       },
       ...data,
-      properties: normalizeProperties({
-        platform: this.config.platform ?? null,
-        app_user_agent: this.config.userAgent ?? null,
-        ...this.config.defaultProperties,
-        ...inputProperties,
-      }),
+      properties: normalizeProperties(
+        {
+          platform: this.config.platform ?? null,
+          app_user_agent: this.config.userAgent ?? null,
+          ...this.config.defaultProperties,
+          ...customProperties,
+        },
+        goalValue !== undefined ? { value: goalValue } : undefined
+      ),
     }
 
     this.log('Tracking event', payload)
@@ -336,9 +353,17 @@ export function createMetricPanelNative(config: MetricPanelNativeConfig): Metric
   return new MetricPanelNativeSDK(config)
 }
 
-function normalizeProperties(properties?: EventProperties): EventProperties | undefined {
-  if (!properties) return undefined
-  return Object.fromEntries(Object.entries(properties).slice(0, 10)) as EventProperties
+function normalizeProperties(
+  properties?: EventProperties,
+  reservedProperties?: EventProperties
+): EventProperties | undefined {
+  const normalized = properties
+    ? (Object.fromEntries(
+        Object.entries(properties).slice(0, MAX_CUSTOM_PROPERTIES)
+      ) as EventProperties)
+    : {}
+  const result = { ...normalized, ...reservedProperties }
+  return Object.keys(result).length > 0 ? result : undefined
 }
 
 function normalizePath(path: string): string {

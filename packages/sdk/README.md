@@ -49,13 +49,13 @@ await metricpanel.event('button_click', { button: 'cta' })
 await metricpanel.revenue({ amount: 2999 })
 
 // Track goal
-await metricpanel.goal({ name: 'signup' })
+await metricpanel.goal({ name: 'signup', value: 2500, properties: { plan: 'pro' } })
 ```
 
 The browser SDK defaults to `https://api.metricpanel.io/api` and sends events to
 `https://api.metricpanel.io/api/events`. The explicit value above makes the hosted destination
-obvious in copied configuration. To use a first-party proxy or a self-hosted MetricPanel API,
-override `apiUrl` with the base path that owns the `/events` route:
+obvious in copied configuration. To use a first-party proxy, override `apiUrl` with the base path
+that forwards the `/events` route to MetricPanel:
 
 ```typescript
 const metricpanel = createMetricPanel({
@@ -66,7 +66,9 @@ const metricpanel = createMetricPanel({
 
 Trailing slashes are normalized. An empty `apiUrl` is rejected instead of falling back silently.
 Revenue amounts must be positive integers in the smallest currency unit, and currency values use
-three-letter ISO codes. For USD, `2999` means `$29.99`.
+three-letter ISO codes. For USD, `2999` means `$29.99`. Goal values must be non-negative integers
+in the smallest currency unit. Custom event and goal properties are limited to 10 fields; keep them
+flat and do not send email addresses, names, credentials, or other sensitive personal data.
 
 ## React Native
 
@@ -180,14 +182,6 @@ Output:
 - `dist/react-native.cjs` / `dist/react-native.mjs` - React Native/native SDK entrypoint
 - `dist/*.d.ts` - TypeScript definitions and declaration maps
 - `dist/*.map` - JavaScript source maps
-
-## Release integrity
-
-Package source is synchronized to the public
-[`metricpanel-js`](https://github.com/fiftyone-digital/metricpanel-js) release monorepo. Releases
-are built there and published through npm Trusted Publishing with short-lived GitHub Actions OIDC
-credentials. The release workflow checks the mirror, inspects the packed tarball, publishes it with
-provenance, and verifies clean Bun, Node.js, and browser-bundle consumption from the public registry.
 
 ## License
 

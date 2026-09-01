@@ -1,7 +1,6 @@
 /**
  * MetricPanel Analytics SDK
  * A TypeScript SDK for tracking events, goals, and revenue
- * @version 1.1.1
  */
 
 export interface MetricPanelConfig {
@@ -59,6 +58,7 @@ const LEGACY_SESSION_COOKIE = 'mtrk_sid'
 const LEGACY_ATTRIBUTION_STORAGE_PREFIX = 'mtrk_attr:'
 const LEGACY_REFERRER_STORAGE_PREFIX = 'mtrk_ref:'
 const LEGACY_CONSENT_STORAGE_PREFIX = 'mtrk_consent:'
+const MAX_CUSTOM_PROPERTIES = 10
 export const METRICPANEL_API_URL = 'https://api.metricpanel.io/api'
 const ATTRIBUTION_KEYS = [
   'source',
@@ -213,15 +213,13 @@ export class MetricPanelSDK {
       throw new Error('Event name must be a string')
     }
 
-    // Limit properties to 10 fields
-    if (properties && Object.keys(properties).length > 10) {
+    if (properties && Object.keys(properties).length > MAX_CUSTOM_PROPERTIES) {
       this.log('Warning: Properties limited to 10 fields')
-      properties = Object.fromEntries(Object.entries(properties).slice(0, 10))
     }
 
     return this.track('event', {
       name,
-      properties: properties || undefined,
+      properties: normalizeProperties(properties),
     })
   }
 
@@ -248,16 +246,25 @@ export class MetricPanelSDK {
    * Track a goal conversion
    */
   async goal(data: GoalData): Promise<void> {
-    if (!data || !data.name) {
+    if (!data || typeof data.name !== 'string' || !data.name.trim()) {
       throw new Error('Goal name is required')
+    }
+    if (data.value !== undefined && (!Number.isSafeInteger(data.value) || data.value < 0)) {
+      throw new Error('Goal value must be a non-negative integer in the smallest currency unit')
+    }
+    const { value: propertyValue, ...customProperties } = data.properties ?? {}
+    if (Object.keys(customProperties).length > MAX_CUSTOM_PROPERTIES) {
+      this.log('Warning: Properties limited to 10 fields')
     }
 
     return this.track('goal', {
-      name: data.name,
-      properties: {
-        value: data.value,
-        ...data.properties,
-      },
+      name: data.name.trim(),
+      properties: normalizeProperties(
+        customProperties,
+        data.value !== undefined || propertyValue !== undefined
+          ? { value: data.value ?? propertyValue }
+          : undefined
+      ),
     })
   }
 
@@ -789,6 +796,19 @@ export class MetricPanelSDK {
  */
 export function createMetricPanel(config: MetricPanelConfig): MetricPanelSDK {
   return new MetricPanelSDK(config)
+}
+
+function normalizeProperties(
+  properties?: EventProperties,
+  reservedProperties?: EventProperties
+): EventProperties | undefined {
+  const normalized = properties
+    ? (Object.fromEntries(
+        Object.entries(properties).slice(0, MAX_CUSTOM_PROPERTIES)
+      ) as EventProperties)
+    : {}
+  const result = { ...normalized, ...reservedProperties }
+  return Object.keys(result).length > 0 ? result : undefined
 }
 
 /**
