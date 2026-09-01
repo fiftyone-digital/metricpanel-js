@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "fiftyone-digital/metricpanel",
+  "sourceCommit": "7eb5c501af6fd31f99e719fa7b6f99588bcf492c",
+  "packages": [
+    {
+      "name": "@metricpanel/sdk",
+      "path": "packages/sdk",
+      "files": {
+        ".prettierignore": "e2bbc4143bbb57ffbc4ee3151564f915d3f2fa05b36fbe70c2ea3e25947dd185",
+        ".prettierrc.json": "a2d9040c371a1574e7d5e0efcc34f3546cca35c85980f55be1dc415ac96f4899",
+        "LICENSE": "dfcfcf3e5ea0d00c0c2161cfe77d98e237ac6c1ec114d926e43113805012cf63",
+        "README.md": "85158965108ace9de281922378b241b27ef89ead6878de57eb9753ea5f22cd4a",
+        "eslint.config.mjs": "61453022e306d4ad6d48d8dec37e6b6f1affbe6910033eb6cfbb9f7fc58533fe",
+        "example.html": "2c1bcf874ea091d1a035413c60bdb5a1afb31f1bad2b788a4bd7e70a35483162",
+        "index.test.ts": "c22786183b41ef513ff857d470560ed38054a1baacc471590ecee14b704a7714",
+        "index.ts": "35ee38a921da1e611c7733b9618fbd3b814a7f09bd590f3f8e53f0ae6084d850",
+        "package.json": "e104d4eb2e04259be5016705fd74ac118ea4b9f92eb64f63fbe83dedbedb0413",
+        "react-native.test.ts": "ab95dc0de4b8d525657fc6d0551dc36ef410745f570707046e894de4b30e02ff",
+        "react-native.ts": "f045286cadcfc00f57a5b50964d9b90bf35218e02d016b3434f258255fd2ba0d",
+        "tsconfig.json": "c194f3a848534faa622f670354a7b9cb5fc7502e9b239d06ec8390a53cb0c94e",
+        "vitest.config.ts": "3dd819c50ed3d66c6642722fa4e1f6867774e0fbbfc298398291c8d9dba7bfb9"
+      }
+    },
+    {
+      "name": "@metricpanel/ai-crawl",
+      "path": "packages/ai-crawl",
+      "files": {
+        ".prettierignore": "9257855fe4e7b663667fad0eeb9f317313cf81ad4e50d0600fd3f2a4ebba02eb",
+        ".prettierrc.json": "a2d9040c371a1574e7d5e0efcc34f3546cca35c85980f55be1dc415ac96f4899",
+        "LICENSE": "dfcfcf3e5ea0d00c0c2161cfe77d98e237ac6c1ec114d926e43113805012cf63",
+        "README.md": "07a166461f5adc056e038116c2b66b3a4a89461b2cbf182fb9a5a304dfc8ae84",
+        "eslint.config.mjs": "cc1b4e2212e3db29d6821356f8991b5663f668fd3b5abf294f8c29523dad5423",
+        "package.json": "73079abc8bf7b592411c459390b7616468cec7af84676a4ff238d2f45baa90d1",
+        "src/catalog.ts": "f360c1e921118758343e5291ed3b68045f7e92c744a24bb8f114ab1fac21bf3d",
+        "src/index.test.ts": "f757a40a7272f3b22137880e6b1f78a92818795dbb7a1e680ff1661303a5f19e",
+        "src/index.ts": "fa37384c0ef308da51d26fecd2f49790df2131efa54819289573b96cb18e8f17",
+        "tsconfig.build.json": "1b195d8dd47f26ce23b7dfbaf9967d87547172921e485318537e2216abc04d92",
+        "tsconfig.json": "5fd9293151df438a13c81290e953f2da064fcd377237f9a4d52675e141a88517"
+      }
+    }
+  ]
+}

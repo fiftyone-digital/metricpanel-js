@@ -1,0 +1,126 @@
+name: Publish package
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name, 'sdk-v') || startsWith(github.event.release.tag_name, 'ai-crawl-v')
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.22.2
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve package from release tag
+        id: package
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        shell: bash
+        run: |
+          case "$RELEASE_TAG" in
+            sdk-v*)
+              echo "name=@metricpanel/sdk" >> "$GITHUB_OUTPUT"
+              echo "path=packages/sdk" >> "$GITHUB_OUTPUT"
+              echo "version=${RELEASE_TAG#sdk-v}" >> "$GITHUB_OUTPUT"
+              ;;
+            ai-crawl-v*)
+              echo "name=@metricpanel/ai-crawl" >> "$GITHUB_OUTPUT"
+              echo "path=packages/ai-crawl" >> "$GITHUB_OUTPUT"
+              echo "version=${RELEASE_TAG#ai-crawl-v}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported release tag: $RELEASE_TAG" >&2
+              exit 1
+              ;;
+          esac
+
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run build
+      - run: bun run verify:packages
+
+      - name: Verify release version
+        env:
+          PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          PACKAGE_VERSION="$(bun -e "console.log(require('./${PACKAGE_PATH}/package.json').version)")"
+          test "$PACKAGE_VERSION" = "$RELEASE_VERSION"
+
+      - name: Pack release artifact
+        id: artifact
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          cd "$PACKAGE_PATH"
+          bun pm pack --destination "$RUNNER_TEMP/release"
+          TARBALL_NAME="${PACKAGE_NAME#@}"
+          TARBALL_NAME="${TARBALL_NAME/\//-}-${RELEASE_VERSION}.tgz"
+          TARBALL_PATH="$RUNNER_TEMP/release/$TARBALL_NAME"
+          test -f "$TARBALL_PATH"
+          tar -tzf "$TARBALL_PATH"
+          echo "path=$TARBALL_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Publish inspected artifact with provenance
+        run: bunx npm@12.0.2 publish --access public "${{ steps.artifact.outputs.path }}"
+
+      - name: Wait for public registry metadata
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          for attempt in {1..24}; do
+            if test "$(bun pm view "${PACKAGE_NAME}@${RELEASE_VERSION}" version 2>/dev/null)" = "$RELEASE_VERSION"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "${PACKAGE_NAME}@${RELEASE_VERSION} was not visible after two minutes" >&2
+          exit 1
+
+      - name: Verify clean registry consumption
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          FIXTURE="$RUNNER_TEMP/registry-consumer"
+          mkdir "$FIXTURE"
+          cd "$FIXTURE"
+          bun init -y
+          bun add --exact "${PACKAGE_NAME}@${RELEASE_VERSION}"
+          if test "$PACKAGE_NAME" = "@metricpanel/sdk"; then
+            bun -e "import('@metricpanel/sdk').then((m) => { if (m.METRICPANEL_API_URL !== 'https://api.metricpanel.io/api') process.exit(1) })"
+            node -e "import('@metricpanel/sdk').then((m) => { if (typeof m.createMetricPanel !== 'function') process.exit(1) })"
+            node -e "const m = require('@metricpanel/sdk'); if (typeof m.createMetricPanel !== 'function') process.exit(1)"
+            node -e "import('@metricpanel/sdk/react-native').then((m) => { if (typeof m.createMetricPanelNative !== 'function') process.exit(1) })"
+          else
+            bun -e "import('@metricpanel/ai-crawl').then((m) => { if (typeof m.trackAICrawlerRequest !== 'function') process.exit(1) })"
+            node -e "import('@metricpanel/ai-crawl').then((m) => { if (typeof m.createMetricPanelAICrawl !== 'function') process.exit(1) })"
+            node -e "const m = require('@metricpanel/ai-crawl'); if (typeof m.trackAICrawlerResponse !== 'function') process.exit(1)"
+          fi

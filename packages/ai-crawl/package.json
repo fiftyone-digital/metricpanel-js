@@ -1,0 +1,73 @@
+{
+  "name": "@metricpanel/ai-crawl",
+  "version": "0.2.3",
+  "description": "Server-side AI crawler tracking for MetricPanel",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
+    "build": "bun run clean && bun run build:esm && bun run build:cjs && tsc -p tsconfig.build.json",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist --format esm --target node --entry-naming='index.mjs' --sourcemap=external",
+    "build:cjs": "bun build ./src/index.ts --outdir ./dist --format cjs --target node --entry-naming='index.cjs' --sourcemap=external",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint:check": "eslint src --max-warnings=0",
+    "format:check": "prettier --check .",
+    "check": "bun run lint:check && bun run test && bun run typecheck && bun run format:check"
+  },
+  "author": {
+    "name": "FiftyOne Digital",
+    "url": "https://fiftyone.dev"
+  },
+  "homepage": "https://docs.metricpanel.io/ai-crawlers",
+  "bugs": {
+    "url": "https://github.com/fiftyone-digital/metricpanel-js/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fiftyone-digital/metricpanel-js.git",
+    "directory": "packages/ai-crawl"
+  },
+  "keywords": [
+    "analytics",
+    "ai-crawler",
+    "bot",
+    "nextjs",
+    "cloudflare",
+    "metricpanel"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "packageManager": "bun@1.3.8",
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "prettier": "3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "3.2.7"
+  }
+}
