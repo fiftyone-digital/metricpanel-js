@@ -190,14 +190,13 @@ export class MetricPanelNativeSDK {
       throw new Error('Goal value must be a non-negative integer in the smallest currency unit')
     }
     const { value: propertyValue, ...customProperties } = data.properties ?? {}
+    const goalValue = data.value !== undefined ? data.value : propertyValue
 
     return this.track('goal', {
       name: data.name.trim(),
       properties: normalizeProperties(
         customProperties,
-        data.value !== undefined || propertyValue !== undefined
-          ? { value: data.value ?? propertyValue }
-          : undefined
+        goalValue !== undefined ? { value: goalValue } : undefined
       ),
     })
   }

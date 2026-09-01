@@ -253,6 +253,7 @@ export class MetricPanelSDK {
       throw new Error('Goal value must be a non-negative integer in the smallest currency unit')
     }
     const { value: propertyValue, ...customProperties } = data.properties ?? {}
+    const goalValue = data.value !== undefined ? data.value : propertyValue
     if (Object.keys(customProperties).length > MAX_CUSTOM_PROPERTIES) {
       this.log('Warning: Properties limited to 10 fields')
     }
@@ -261,9 +262,7 @@ export class MetricPanelSDK {
       name: data.name.trim(),
       properties: normalizeProperties(
         customProperties,
-        data.value !== undefined || propertyValue !== undefined
-          ? { value: data.value ?? propertyValue }
-          : undefined
+        goalValue !== undefined ? { value: goalValue } : undefined
       ),
     })
   }
