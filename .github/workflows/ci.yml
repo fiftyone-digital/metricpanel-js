@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -23,6 +25,11 @@ jobs:
           node-version: 22.22.2
 
       - run: bun install --frozen-lockfile
+      - name: Require package version bumps
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bun scripts/verify-package-version-bumps.ts "$BASE_SHA"
       - run: bun run check
       - run: bun run build
       - run: bun run verify:packages

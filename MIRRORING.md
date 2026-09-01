@@ -10,9 +10,11 @@ packages under `packages/`. This public repository is a one-way release mirror.
 3. Merge the private change to `main`.
 4. The private `Sync public packages` workflow exports an explicit file allowlist and opens a pull
    request here using a narrowly scoped GitHub App installation token.
-5. Review and merge the generated public pull request after public CI passes.
-6. Create a GitHub release with the package-specific tag. The public release workflow builds,
-   inspects, publishes, and verifies the package through npm Trusted Publishing.
+5. Public CI verifies the generated pull request and GitHub auto-merges it only after the required
+   `verify` check passes.
+6. The merge triggers the public release workflow. Any package version that does not exist on npm
+   is built, inspected, published, installed from the registry, and assigned a generated GitHub
+   release through npm Trusted Publishing.
 
 The synchronization never copies private root configuration, applications, environment files, or
 release credentials. It replaces only the configured package directories and the generated
