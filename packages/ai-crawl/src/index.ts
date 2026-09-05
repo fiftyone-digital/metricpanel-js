@@ -395,7 +395,11 @@ function getEndpoint(config: MetricPanelAICrawlConfig) {
 
 function reportError(config: MetricPanelAICrawlConfig, error: unknown) {
   const normalized = error instanceof Error ? error : new Error(String(error))
-  config.onError?.(normalized)
+  try {
+    config.onError?.(normalized)
+  } catch {
+    // A consumer's error reporter must not break the host request or background task.
+  }
   if (config.debug) console.warn('[MetricPanel] Failed to track AI crawler request', normalized)
 }
 

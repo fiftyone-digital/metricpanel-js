@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "fiftyone-digital/metricpanel",
-  "sourceCommit": "36fa99dc575aa9b6b3eacbe6994a466abe1c6aa6",
+  "sourceCommit": "2c67ca09dd8405f00d44aa2bbd37f9bf092ee013",
   "packages": [
     {
       "name": "@metricpanel/sdk",
@@ -35,8 +35,8 @@
         "scripts/check-package.ts": "530b0e09d2539c9bedf1cff55bfe9e97be1e93e2e7050c1232d00b35f1800f10",
         "scripts/finalize-types.ts": "90484bbdafdaa61af412bea00c3003361310c235c34c12b131d09c6e11ea1a9a",
         "src/catalog.ts": "106dd6dde0a7d4fa726424876b61a9a49cb985dcf715bb48938a870e00b3639a",
-        "src/index.test.ts": "890daa9067cb3696c134c7407922575ddb2f68418532e0e98d05d4b3864b3d9b",
-        "src/index.ts": "fd57bfd68632cb9b59634caead388367a354886b8e82a0f7d80403a00308dcff",
+        "src/index.test.ts": "3d59b60370514d6e055c5f9d51fddf50f1b44ac92a662858ea1ca8d4df9d1fb0",
+        "src/index.ts": "bac4fca756ac1fc9585e79f2bf9865691a797c47e52afeaecb42568ed5798e6b",
         "tsconfig.build.json": "1b195d8dd47f26ce23b7dfbaf9967d87547172921e485318537e2216abc04d92",
         "tsconfig.json": "24fd20452f787ad00ae8688b28b8e9ef53a16ce38e015fbe82d30a8619594a4f"
       }
