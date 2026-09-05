@@ -280,6 +280,50 @@ describe('tracking helpers', () => {
     await Promise.all(pending)
   })
 
+  it.each(['api', 'network'] as const)(
+    'preserves the host response when reporting a %s failure also throws',
+    async (failure) => {
+      const onError = vi.fn(() => {
+        throw new Error('Error reporting unavailable')
+      })
+      const tracker = createMetricPanelAICrawl({
+        ...BASE_CONFIG,
+        onError,
+        fetch: async () => {
+          if (failure === 'network') throw new Error('Network unavailable')
+          return new Response(null, { status: 503 })
+        },
+      })
+
+      await expect(tracker.track(crawlerRequest('/failure'))).resolves.toMatchObject({
+        state: 'failed',
+        reason: failure === 'api' ? 'api_error' : 'network_error',
+      })
+      expect(onError).toHaveBeenCalledOnce()
+
+      const response = new Response('Host response', { status: 200 })
+      const handler = tracker.withHandler(() => response)
+      await expect(handler(crawlerRequest('/failure'))).resolves.toBe(response)
+    }
+  )
+
+  it('contains errors from a throwing lifecycle hook and error reporter', async () => {
+    const onError = vi.fn(() => {
+      throw new Error('Error reporting unavailable')
+    })
+    const wrapped = withAICrawlerTracking(() => new Response(null, { status: 204 }), {
+      ...BASE_CONFIG,
+      fetch: async () => new Response(null, { status: 202 }),
+      waitUntil: () => {
+        throw new Error('Lifecycle hook unavailable')
+      },
+      onError,
+    })
+
+    await expect(wrapped(crawlerRequest('/background'))).resolves.toMatchObject({ status: 204 })
+    expect(onError).toHaveBeenCalledOnce()
+  })
+
   it('does not mistake an arbitrary handler callback for a lifecycle waitUntil hook', async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(null, { status: 202 }))
     const callback = vi.fn()
