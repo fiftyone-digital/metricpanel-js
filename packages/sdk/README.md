@@ -186,3 +186,31 @@ Output:
 ## License
 
 MIT
+
+## Dashboard-managed event rules (browser SDK 1.2+)
+
+Opt in once with `eventRules: true` on your existing SDK configuration. Manage click,
+form-submit and page-visit rules in the website's Tracking settings. Rules default off
+in the SDK and respect consent, Do Not Track and localhost settings. React Native does
+not run browser rules.
+
+```ts
+const tracker = createMetricPanel({ websiteId: 'YOUR_PUBLIC_WEBSITE_ID', eventRules: true })
+await tracker.pageview()
+console.table(await tracker.previewEventRules()) // Current enabled matches; sends no events.
+```
+
+Enabled definitions refresh each minute on visible pages and on returning to the tab.
+Failed refreshes clear rules; definitions expire after two minutes. Revoking consent or
+calling `destroy()` removes listeners and aborts configuration loading. Rules are never
+fetched before consent. Proxy users must forward `/event-rules?websiteId=...` GETs with
+Origin/Referer headers as well as event POSTs.
+
+Click rules match nested contents; submit rules match the form and measure attempts,
+not successful submissions. Page rules follow explicit `pageview()` calls, including
+SPA navigation tracked by your integration. Literal path patterns support `*` and ignore
+queries/fragments. No form values, element text, dynamic attributes or custom scripts
+are read. Events add the static name and `metricpanel_rule_id` property to normal SDK
+context. Overlapping rules deduplicate event names per interaction; manual tracking is
+independent, so avoid giving a rule the same event as a manual call. Preview is limited
+to enabled rules on the current page and reports invalid CSS selectors.
