@@ -1,4 +1,5 @@
 import { BrowserEventRules } from './event-rules'
+import { BrowserWebVitals } from './web-vitals'
 /**
  * MetricPanel Analytics SDK
  * A TypeScript SDK for tracking events, goals, and revenue
@@ -15,6 +16,8 @@ export interface MetricPanelConfig {
   waitForConsent?: boolean
   /** Enable dashboard-managed browser event rules after consent. */
   eventRules?: boolean
+  /** Collect document Web Vitals after consent. Disabled by default. */
+  webVitals?: boolean
   trackHashRoutes?: boolean
   onError?: (error: Error) => void
 }
@@ -43,7 +46,7 @@ export interface PageviewData {
   referrer?: string | null
 }
 
-export type MetricPanelEventType = 'pageview' | 'event' | 'revenue' | 'goal'
+export type MetricPanelEventType = 'pageview' | 'event' | 'revenue' | 'goal' | 'web_vital'
 
 export interface PrivacyMode {
   cookieless?: boolean
@@ -88,6 +91,7 @@ export class MetricPanelSDK {
   private disabled = false
   private destroyed = false
   private rules: BrowserEventRules | null = null
+  private vitals: BrowserWebVitals | null = null
 
   constructor(config: MetricPanelConfig) {
     if (!config?.websiteId || typeof config.websiteId !== 'string') {
@@ -115,6 +119,7 @@ export class MetricPanelSDK {
       waitForConsent: config.waitForConsent ?? false,
       trackHashRoutes: config.trackHashRoutes ?? false,
       eventRules: config.eventRules ?? false,
+      webVitals: config.webVitals ?? false,
       onError: config.onError,
     }
 
@@ -202,6 +207,11 @@ export class MetricPanelSDK {
             path,
             properties: { metricpanel_rule_id: rule.id },
           })
+      )
+    }
+    if (this.config.webVitals && !this.vitals) {
+      this.vitals = new BrowserWebVitals((webVital, path, timestamp) =>
+        this.track('web_vital', { webVital, path, timestamp, query: null, title: null })
       )
     }
     this.log('Initialized', { visitorId: this.visitorId, sessionId: this.sessionId })
@@ -359,6 +369,7 @@ export class MetricPanelSDK {
    * Stops tracking and clears stored data
    */
   revokeConsent(): void {
+    this.vitals?.stop()
     this.rules?.stop()
     this.rules = null
     this.log('Consent revoked')
@@ -400,6 +411,7 @@ export class MetricPanelSDK {
    * Stored identifiers remain available to a later instance unless consent is revoked.
    */
   destroy(): void {
+    this.vitals?.stop()
     this.rules?.stop()
     this.rules = null
     this.destroyed = true

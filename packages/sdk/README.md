@@ -214,3 +214,33 @@ are read. Events add the static name and `metricpanel_rule_id` property to norma
 context. Overlapping rules deduplicate event names per interaction; manual tracking is
 independent, so avoid giving a rule the same event as a manual call. Preview is limited
 to enabled rules on the current page and reports invalid CSS selectors.
+
+## Web Vitals
+
+With SDK 1.3.0+, opt in to document-level real-user performance:
+
+```ts
+const analytics = createMetricPanel({ websiteId: 'YOUR_WEBSITE_ID', webVitals: true })
+```
+
+This uses the bundled Google `web-vitals` library for LCP, INP, CLS, FCP and TTFB. Collection
+starts after consent and honors Do Not Track and localhost settings. No DOM entries, text,
+selectors or resource attribution are sent. The page path excludes query strings and hashes.
+Measurements do not create pageviews, custom events, goal completions or live activity.
+
+Measurements describe full document navigations and back/forward-cache restores. SPA route
+changes do not start new measurements; delayed callbacks remain attributed to the document
+path. Some values arrive only when a page is hidden. INP requires an interaction, and browser
+support differs. Missing measurements are not zero scores.
+
+The library registers observers once per document. `destroy()` and `revokeConsent()` detach
+this instance and stop all uploads. After revocation, Web Vitals stays stopped for that SDK
+instance even if consent is granted again; reload the page to begin a fresh measurement period.
+This avoids replaying measurements spanning a revoked-consent period. Other SDK tracking
+resumes normally. Buffered browser measurements may describe page loading before consent,
+but they are read and transmitted only after consent is granted.
+
+Open **Web Vitals** in MetricPanel for p75 values, daily trends, page breakdowns, and sample
+counts. Reports keep the latest value for each metric ID, so repeated hidden/visible updates
+are not counted as extra samples. Collection is best-effort and is not a Lighthouse lab test
+or a replacement for Chrome UX Report field data.
