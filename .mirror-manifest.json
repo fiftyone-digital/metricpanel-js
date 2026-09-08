@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "fiftyone-digital/metricpanel",
-  "sourceCommit": "80254cccec57878d5b5b6258b919103715958625",
+  "sourceCommit": "9171c174cc048ce99165b38e0a3da0d93a39abd6",
   "packages": [
     {
       "name": "@metricpanel/sdk",
@@ -10,18 +10,21 @@
         ".prettierignore": "e2bbc4143bbb57ffbc4ee3151564f915d3f2fa05b36fbe70c2ea3e25947dd185",
         ".prettierrc.json": "a2d9040c371a1574e7d5e0efcc34f3546cca35c85980f55be1dc415ac96f4899",
         "LICENSE": "dfcfcf3e5ea0d00c0c2161cfe77d98e237ac6c1ec114d926e43113805012cf63",
-        "README.md": "0d197fe5333b6ca48e01b00c2f9d59b52ff36bbf9103cba2b60a9a1c1f3db278",
+        "README.md": "36b94c0ac0d652d597782842580333e0747225728e301dfac500511f13019fe7",
+        "THIRD_PARTY_LICENSES.txt": "279549228cae2aa32dd18cdb5bbe230f44ba459a054b29f7e294bb6c193b1d17",
         "eslint.config.mjs": "61453022e306d4ad6d48d8dec37e6b6f1affbe6910033eb6cfbb9f7fc58533fe",
         "event-rules.test.ts": "6f431718858f8e093c5e0c5f07e9c3e524fd9da341576e61f3c6eacc3dc99d2d",
         "event-rules.ts": "daa2943e9cdeeaabc092b2b8774deb88de6ced3fc81db477d46b031ad40e59a2",
         "example.html": "6f2410f40abd237f579e1ebdbfd1aee7983655332a19adf1407d5892b0772c22",
         "index.test.ts": "739ea213d6e3c2e13af1db25807f80bc0587c0341ce6025038566a7f642f6778",
-        "index.ts": "f82ecddfc6b2c8827b54491c9584e0a2b20eb2ca80cf2c6aac9f80783aef881e",
-        "package.json": "5d0ede49a77d6467ba61b069935ed837f3229ef87566abe6e156a59db5fb7869",
+        "index.ts": "e1a253e898505ecb38d37cb6999f83c19af7bd8b2b6b6c947cbd2f38dc5d2336",
+        "package.json": "89bd8c1e122e085f384ce9cd695f0f2eddf2660db71eca3eac5db1f634f8cc68",
         "react-native.test.ts": "8bf84ec19d6caefaeb0f0e2c002b09dc2d6c7b90497df3e00e3b007910c578f5",
         "react-native.ts": "ff9bc3a78eee8d5f0bb7e6994ca1e2526784239eb55837186cf174ed01eb18df",
         "tsconfig.json": "c194f3a848534faa622f670354a7b9cb5fc7502e9b239d06ec8390a53cb0c94e",
-        "vitest.config.ts": "3dd819c50ed3d66c6642722fa4e1f6867774e0fbbfc298398291c8d9dba7bfb9"
+        "vitest.config.ts": "3dd819c50ed3d66c6642722fa4e1f6867774e0fbbfc298398291c8d9dba7bfb9",
+        "web-vitals.test.ts": "77b0f969b838c421c465ebf4dbad1fd791deefe090bb4fb14987f5d41fdae64d",
+        "web-vitals.ts": "3439b67ec24068d19423291d3dc61c104d8f430025cd9ee7c289cd6c51ba53a9"
       }
     },
     {
