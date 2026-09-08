@@ -1,3 +1,4 @@
+import { BrowserEventRules } from './event-rules'
 /**
  * MetricPanel Analytics SDK
  * A TypeScript SDK for tracking events, goals, and revenue
@@ -12,6 +13,8 @@ export interface MetricPanelConfig {
   respectDoNotTrack?: boolean
   anonymizeIP?: boolean
   waitForConsent?: boolean
+  /** Enable dashboard-managed browser event rules after consent. */
+  eventRules?: boolean
   trackHashRoutes?: boolean
   onError?: (error: Error) => void
 }
@@ -84,6 +87,7 @@ export class MetricPanelSDK {
   private consentMode = false
   private disabled = false
   private destroyed = false
+  private rules: BrowserEventRules | null = null
 
   constructor(config: MetricPanelConfig) {
     if (!config?.websiteId || typeof config.websiteId !== 'string') {
@@ -110,6 +114,7 @@ export class MetricPanelSDK {
       anonymizeIP: config.anonymizeIP ?? false,
       waitForConsent: config.waitForConsent ?? false,
       trackHashRoutes: config.trackHashRoutes ?? false,
+      eventRules: config.eventRules ?? false,
       onError: config.onError,
     }
 
@@ -188,6 +193,17 @@ export class MetricPanelSDK {
     }
 
     this.initialized = true
+    if (this.config.eventRules && !this.rules) {
+      this.rules = new BrowserEventRules(
+        `${this.config.apiUrl}/event-rules?websiteId=${encodeURIComponent(this.config.websiteId)}`,
+        (rule, path) =>
+          this.track('event', {
+            name: rule.eventName,
+            path,
+            properties: { metricpanel_rule_id: rule.id },
+          })
+      )
+    }
     this.log('Initialized', { visitorId: this.visitorId, sessionId: this.sessionId })
 
     // Process queued events
@@ -343,6 +359,8 @@ export class MetricPanelSDK {
    * Stops tracking and clears stored data
    */
   revokeConsent(): void {
+    this.rules?.stop()
+    this.rules = null
     this.log('Consent revoked')
     this.consentMode = true
     this.consentGranted = false
@@ -382,6 +400,8 @@ export class MetricPanelSDK {
    * Stored identifiers remain available to a later instance unless consent is revoked.
    */
   destroy(): void {
+    this.rules?.stop()
+    this.rules = null
     this.destroyed = true
     this.initialized = false
     this.queue = []
@@ -389,9 +409,14 @@ export class MetricPanelSDK {
     this.sessionId = null
   }
 
-  /**
-   * Check if consent has been granted
-   */
+  /** Refresh enabled rules and inspect matches on this page without sending analytics. */
+  async previewEventRules() {
+    await this.rules?.refresh()
+    await this.rules?.ready
+    return this.rules?.preview() ?? []
+  }
+
+  /** Check if consent has been granted. */
   hasConsent(): boolean {
     if (!this.consentMode) {
       return true // Not in consent mode means implicit consent
@@ -454,8 +479,11 @@ export class MetricPanelSDK {
 
     this.log('Tracking event', payload)
 
+    const activeRules = this.rules
     try {
       await this.send(payload)
+      if (type === 'pageview' && typeof data.path === 'string')
+        await activeRules?.pageview(data.path)
     } catch (error) {
       const normalizedError =
         error instanceof Error ? error : new Error('MetricPanel event ingestion failed')

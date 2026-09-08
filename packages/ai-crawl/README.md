@@ -12,8 +12,10 @@ so it does not depend on client-side JavaScript and never sends ordinary visitor
 bun add @metricpanel/ai-crawl
 ```
 
-Create an ingest-scoped API token in MetricPanel. Keep it server-only; valid tokens start with
-`mp_live_`. The tracker uses `https://api.metricpanel.io` by default.
+In MetricPanel, open your website's **Settings → API & Security → API Tokens → Create Token**
+as an owner or admin. Select **Send events** (`events:write`), create the token, and copy it while
+it is shown. Store it server-side as `METRICPANEL_INGEST_TOKEN`; valid tokens start with `mp_live_`.
+Existing legacy `ingest` tokens still work. The tracker uses `https://api.metricpanel.io` by default.
 
 ## Next.js 16+ / Vercel
 

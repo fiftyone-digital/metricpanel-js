@@ -1,6 +1,6 @@
 {
   "name": "@metricpanel/sdk",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "description": "Official browser and React Native SDK for MetricPanel analytics",
   "type": "module",
   "main": "dist/index.cjs",
@@ -26,6 +26,7 @@
     "dist",
     "index.ts",
     "react-native.ts",
+    "event-rules.ts",
     "README.md",
     "LICENSE"
   ],
@@ -38,7 +39,7 @@
     "prepack": "bun run build",
     "prepublishOnly": "bun run check && bun run build",
     "check": "bun run lint:check && bun run test && bun run typecheck && bun run format:check",
-    "lint:check": "eslint index.ts react-native.ts --max-warnings=0",
+    "lint:check": "eslint index.ts event-rules.ts react-native.ts --max-warnings=0",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format:check": "prettier --check ."
